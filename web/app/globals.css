@@ -1,0 +1,245 @@
+@import "tailwindcss";
+
+:root {
+  --background: #1e1c2e;
+  --foreground: #f4f4f5;
+  --accent: #8b5cf6;
+  --surface: #2a2838;
+  --surface-elevated: #353347;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* ——— GhostTalk ambient animations ——— */
+
+@keyframes ghost-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes ghost-logo-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.05);
+  }
+}
+
+@keyframes ghost-eye-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes ghost-shadow-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scaleX(1.08);
+  }
+}
+
+@keyframes ghost-mist-drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.28;
+  }
+  100% {
+    transform: translate(4%, -3%) scale(1.05);
+    opacity: 0.15;
+  }
+}
+
+@keyframes ghost-particle-rise {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.6;
+  }
+  85% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(-120px) scale(0.4);
+    opacity: 0;
+  }
+}
+
+@keyframes ghost-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ghost-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ghost-ring-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 40px rgba(124, 58, 237, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 56px rgba(124, 58, 237, 0.4);
+  }
+}
+
+.ghost-figure-float {
+  animation: ghost-float 7s ease-in-out infinite;
+}
+
+.ghost-logo-float {
+  animation: ghost-logo-float 4s ease-in-out infinite;
+}
+
+.ghost-eye-glow {
+  animation: ghost-eye-glow 3s ease-in-out infinite;
+}
+
+.ghost-shadow-pulse {
+  animation: ghost-shadow-pulse 5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.ghost-mist {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  animation: ghost-mist-drift 14s ease-in-out infinite alternate;
+}
+
+.ghost-mist-a {
+  width: 55%;
+  height: 40%;
+  left: -10%;
+  top: 20%;
+  background: rgba(167, 139, 250, 0.18);
+}
+
+.ghost-mist-b {
+  width: 45%;
+  height: 35%;
+  right: -5%;
+  bottom: 15%;
+  background: rgba(139, 92, 246, 0.14);
+  animation-delay: -5s;
+}
+
+.ghost-mist-c {
+  width: 40%;
+  height: 30%;
+  left: 30%;
+  bottom: 5%;
+  background: rgba(167, 139, 250, 0.1);
+  animation-delay: -8s;
+}
+
+.ghost-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(167, 139, 250, 0.7);
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.5);
+  animation: ghost-particle-rise linear infinite;
+}
+
+.ghost-logo-ring {
+  animation: ghost-ring-pulse 4s ease-in-out infinite;
+}
+
+.ghost-stagger-1 {
+  animation: ghost-fade-in-up 0.7s ease-out both;
+}
+
+.ghost-stagger-2 {
+  animation: ghost-fade-in-up 0.7s ease-out 0.12s both;
+}
+
+.ghost-stagger-3 {
+  animation: ghost-fade-in-up 0.7s ease-out 0.24s both;
+}
+
+.ghost-stagger-4 {
+  animation: ghost-fade-in-up 0.7s ease-out 0.36s both;
+}
+
+.ghost-stagger-5 {
+  animation: ghost-fade-in-up 0.7s ease-out 0.48s both;
+}
+
+.ghost-panel-enter {
+  animation: ghost-panel-in 0.45s ease-out both;
+}
+
+.ghost-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ghost-figure-float,
+  .ghost-logo-float,
+  .ghost-eye-glow,
+  .ghost-shadow-pulse,
+  .ghost-mist,
+  .ghost-particle,
+  .ghost-logo-ring,
+  .ghost-stagger-1,
+  .ghost-stagger-2,
+  .ghost-stagger-3,
+  .ghost-stagger-4,
+  .ghost-stagger-5,
+  .ghost-panel-enter {
+    animation: none;
+  }
+
+  .ghost-card-hover:hover {
+    transform: none;
+  }
+}

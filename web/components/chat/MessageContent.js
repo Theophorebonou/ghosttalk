@@ -1,0 +1,133 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { downloadAndDecryptMedia } from '@/lib/api/media'
+import { decryptInlineMedia } from '@/lib/crypto/media'
+import { formatFileSize } from '@/lib/constants/media'
+import { Spinner } from '@/components/ui/Spinner'
+
+export function MessageContent({ payload, sharedKey, isOwn }) {
+  if (!payload) {
+    return <p className="text-xs italic opacity-70">Chargement…</p>
+  }
+
+  if (payload.t === 'error') {
+    return <p className="text-sm italic opacity-80">{payload.message}</p>
+  }
+
+  if (payload.t === 'text') {
+    return <p className="whitespace-pre-wrap break-words text-sm">{payload.b}</p>
+  }
+
+  if (payload.t === 'media') {
+    return <MediaAttachment payload={payload} sharedKey={sharedKey} isOwn={isOwn} />
+  }
+
+  return null
+}
+
+function MediaAttachment({ payload, sharedKey, isOwn }) {
+  const [blobUrl, setBlobUrl] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let objectUrl
+    let cancelled = false
+
+    async function load() {
+      try {
+        setLoading(true)
+        setError(null)
+
+        let blob
+        if (payload.inline && payload.data) {
+          const buffer = await decryptInlineMedia(sharedKey, payload.data)
+          blob = new Blob([buffer], { type: payload.mime })
+        } else if (payload.path) {
+          blob = await downloadAndDecryptMedia(sharedKey, payload.path, payload.mime)
+        } else {
+          throw new Error('Média invalide')
+        }
+
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(blob)
+        setBlobUrl(objectUrl)
+      } catch (err) {
+        if (!cancelled) setError(err.message ?? 'Impossible de charger le fichier')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [payload, sharedKey])
+
+  const linkClass = isOwn ? 'text-violet-100 underline' : 'text-violet-300 underline'
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-2">
+        <Spinner className="h-4 w-4 border-2" />
+        <span className="text-xs opacity-80">Déchiffrement du fichier…</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-sm">
+        <p className="font-medium">{payload.name}</p>
+        <p className="text-xs opacity-70">{error}</p>
+      </div>
+    )
+  }
+
+  const isImage = payload.mime?.startsWith('image/')
+  const isVideo = payload.mime?.startsWith('video/')
+  const isAudio = payload.mime?.startsWith('audio/')
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium opacity-90">
+        {payload.name}{' '}
+        <span className="font-normal opacity-70">({formatFileSize(payload.size)})</span>
+      </p>
+
+      {isImage && blobUrl && (
+        <a href={blobUrl} target="_blank" rel="noopener noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={blobUrl}
+            alt={payload.name}
+            className="max-h-64 max-w-full rounded-lg object-contain"
+          />
+        </a>
+      )}
+
+      {isVideo && blobUrl && (
+        <video
+          src={blobUrl}
+          controls
+          className="max-h-64 max-w-full rounded-lg bg-black/40"
+          preload="metadata"
+        />
+      )}
+
+      {isAudio && blobUrl && (
+        <audio src={blobUrl} controls className="w-full max-w-xs" preload="metadata" />
+      )}
+
+      {!isImage && !isVideo && !isAudio && blobUrl && (
+        <a href={blobUrl} download={payload.name} className={`text-sm ${linkClass}`}>
+          Télécharger le fichier
+        </a>
+      )}
+    </div>
+  )
+}
