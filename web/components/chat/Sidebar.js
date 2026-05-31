@@ -82,8 +82,12 @@ export function Sidebar() {
   const directConversations = conversations.filter(c => c.type === 'direct')
   const groupConversations = conversations.filter(c => c.type === 'group')
 
+  const sidebarClasses = activeId 
+    ? 'hidden md:flex md:w-80' 
+    : 'flex w-full md:w-80'
+
   return (
-    <aside className="relative z-10 flex h-full w-80 flex-col border-r border-violet-500/10 bg-[#2a2838]/85 backdrop-blur-xl">
+    <aside className={`relative z-10 h-full shrink-0 flex-col border-r border-violet-500/10 bg-[#2a2838]/85 backdrop-blur-xl ${sidebarClasses}`}>
       <div className="p-4">
         <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-zinc-500">
           Rechercher

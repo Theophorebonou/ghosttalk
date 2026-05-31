@@ -53,7 +53,7 @@ export function ChatInput({ onSendMessage, onSendFile, disabled }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-2 border-t border-violet-500/10 bg-[#2a2838]/80 p-4 backdrop-blur-md"
+      className="flex flex-col gap-2 border-t border-violet-500/10 bg-[#2a2838]/80 p-2 sm:p-4 backdrop-blur-md"
     >
       {status && (
         <p className="text-center text-xs text-violet-300">{status}</p>

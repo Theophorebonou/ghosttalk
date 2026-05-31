@@ -1,12 +1,20 @@
+'use client'
+
+import { useParams } from 'next/navigation'
 import { Sidebar } from '@/components/chat/Sidebar'
 import { GhostBackdrop } from '@/components/visual/GhostBackdrop'
 
 export default function ChatLayout({ children }) {
+  const params = useParams()
+  const activeId = params?.id
+
   return (
-    <div className="relative flex h-screen w-full overflow-hidden bg-background text-zinc-100">
+    <div className="relative flex h-[100dvh] w-full overflow-hidden bg-background text-zinc-100">
       <GhostBackdrop variant="chat" />
       <Sidebar />
-      <main className="relative z-10 flex min-w-0 flex-1 flex-col">{children}</main>
+      <main className={`relative z-10 flex min-w-0 flex-1 flex-col ${activeId ? 'flex' : 'hidden md:flex'}`}>
+        {children}
+      </main>
     </div>
   )
 }

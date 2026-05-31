@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
 import { getConversationById } from '@/lib/api/conversations'
 import { getMessages, sendMessage, subscribeToMessages } from '@/lib/api/messages'
 import { uploadEncryptedMedia, prepareEncryptedMedia } from '@/lib/api/media'
@@ -230,9 +231,15 @@ export function ChatWindow({ conversationId }) {
 
   return (
     <div className="flex h-full flex-1 flex-col">
-      <header className="flex items-center justify-between border-b border-violet-500/10 bg-[#2a2838]/80 px-6 py-4 backdrop-blur-md">
-        <div>
-          {isGroup ? (
+      <header className="flex items-center justify-between border-b border-violet-500/10 bg-[#2a2838]/80 px-4 py-3 md:px-6 md:py-4 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <Link href="/chat" className="md:hidden flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <div>
+            {isGroup ? (
             <div>
               <h2 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
                 <span>👥</span>
@@ -251,6 +258,7 @@ export function ChatWindow({ conversationId }) {
           ) : (
             <div className="h-6 w-32 animate-pulse rounded bg-zinc-800" />
           )}
+          </div>
         </div>
 
         {isGroup && (
