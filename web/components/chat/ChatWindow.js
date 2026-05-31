@@ -31,6 +31,7 @@ export function ChatWindow({ conversationId }) {
   const [isGroup, setIsGroup] = useState(false)
   const [userRole, setUserRole] = useState(null)
   const [showMembersModal, setShowMembersModal] = useState(false)
+  const [replyToMessage, setReplyToMessage] = useState(null)
 
   const messagesEndRef = useRef(null)
 
@@ -167,10 +168,32 @@ export function ChatWindow({ conversationId }) {
     }
   }, [sharedKey, conversationId])
 
+  function getReplyToPayload() {
+    if (!replyToMessage || !replyToMessage.payload) return null
+    let snippet = 'Contenu multimédia'
+    if (replyToMessage.payload.t === 'text') snippet = replyToMessage.payload.b.substring(0, 60)
+    
+    let sender = otherUser?.username || 'Inconnu'
+    if (isGroup) {
+      const p = conversation?.conversation_participants?.find((cp) => cp.profiles.id === replyToMessage.sender_id)
+      if (p) sender = p.profiles.username
+    }
+    if (replyToMessage.sender_id === user?.id) sender = 'Vous'
+
+    return {
+      id: replyToMessage.id,
+      senderName: sender,
+      snippet,
+    }
+  }
+
   async function handleSendMessage(text) {
     if (!sharedKey || !user) return
 
-    const ciphertext = await encryptMessage(sharedKey, buildTextPayload(text))
+    const replyTo = getReplyToPayload()
+    const ciphertext = await encryptMessage(sharedKey, buildTextPayload(text, replyTo))
+    
+    setReplyToMessage(null)
     await sendMessage(conversationId, user.id, ciphertext)
   }
 
@@ -186,6 +209,8 @@ export function ChatWindow({ conversationId }) {
 
     let payloadJson
 
+    const replyTo = getReplyToPayload()
+
     if (file.size <= INLINE_MEDIA_MAX) {
       const encrypted = await prepareEncryptedMedia(sharedKey, buffer)
       payloadJson = buildMediaPayload({
@@ -194,6 +219,7 @@ export function ChatWindow({ conversationId }) {
         size: file.size,
         inline: true,
         data: bufToBase64(encrypted),
+        replyTo,
       })
     } else {
       const encrypted = await prepareEncryptedMedia(sharedKey, buffer)
@@ -203,10 +229,12 @@ export function ChatWindow({ conversationId }) {
         mime,
         size: file.size,
         path,
+        replyTo,
       })
     }
 
     const ciphertext = await encryptMessage(sharedKey, payloadJson)
+    setReplyToMessage(null)
     await sendMessage(conversationId, user.id, ciphertext)
   }
 
@@ -308,6 +336,7 @@ export function ChatWindow({ conversationId }) {
                   isOwn={msg.sender_id === user?.id}
                   senderName={isGroup ? sender?.username : null}
                   isGroup={isGroup}
+                  onReply={() => setReplyToMessage(msg)}
                 />
               )
             })}
@@ -321,6 +350,8 @@ export function ChatWindow({ conversationId }) {
         onSendMessage={handleSendMessage}
         onSendFile={handleSendFile}
         disabled={!sharedKey}
+        replyToMessage={replyToMessage}
+        onCancelReply={() => setReplyToMessage(null)}
       />
     </div>
   )

@@ -1,14 +1,18 @@
-export function buildTextPayload(text) {
-  return JSON.stringify({ t: 'text', b: text })
+export function buildTextPayload(text, replyTo = null) {
+  const payload = { t: 'text', b: text }
+  if (replyTo) payload.replyTo = replyTo
+  return JSON.stringify(payload)
 }
 
-export function buildMediaPayload({ name, mime, size, path, inline, data }) {
+export function buildMediaPayload({ name, mime, size, path, inline, data, replyTo = null }) {
   const base = {
     t: 'media',
     name,
     mime: mime || 'application/octet-stream',
     size,
   }
+  if (replyTo) base.replyTo = replyTo
+
   if (inline && data) {
     return JSON.stringify({ ...base, inline: true, data })
   }
