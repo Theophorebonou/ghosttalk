@@ -8,8 +8,10 @@ export async function getConversations() {
       type,
       name,
       created_at,
+      last_message_at,
       conversation_participants!inner(
         joined_at,
+        last_read_at,
         role,
         profiles(
           id,
@@ -90,8 +92,10 @@ export async function getConversationById(id) {
       type,
       name,
       created_at,
+      last_message_at,
       conversation_participants!inner(
         joined_at,
+        last_read_at,
         role,
         profiles(
           id,
@@ -105,5 +109,14 @@ export async function getConversationById(id) {
     .single()
 
   if (error) throw error
+  if (error) throw error
   return data
+}
+
+export async function markAsRead(conversationId) {
+  const { error } = await supabase.rpc('mark_conversation_read', {
+    conv_id: conversationId,
+  })
+
+  if (error) throw error
 }

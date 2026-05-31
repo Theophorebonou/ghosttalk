@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
-import { getConversationById } from '@/lib/api/conversations'
+import { getConversationById, markAsRead } from '@/lib/api/conversations'
 import { getMessages, sendMessage, subscribeToMessages } from '@/lib/api/messages'
 import { uploadEncryptedMedia, prepareEncryptedMedia } from '@/lib/api/media'
 import { deriveSharedKey, encryptMessage } from '@/lib/crypto/e2e'
@@ -60,6 +60,9 @@ export function ChatWindow({ conversationId }) {
         setLoading(true)
         const conv = await getConversationById(conversationId)
         if (!isMounted) return
+
+        // Mark this conversation as read
+        markAsRead(conversationId).catch((err) => console.error("Failed to mark read", err))
 
         setConversation(conv)
         setIsGroup(conv.type === 'group')
@@ -153,6 +156,12 @@ export function ChatWindow({ conversationId }) {
           const decrypted = await decryptChatMessage(sharedKey, newMsg)
           setMessages((prev) => [...prev, decrypted])
           setTimeout(scrollToBottom, 100)
+          
+          if (!isMounted) return
+          // Mark as read instantly if we are actively viewing
+          if (newMsg.sender_id !== user.id) {
+            markAsRead(conversationId).catch(console.error)
+          }
         })
 
       } catch (err) {

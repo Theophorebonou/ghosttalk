@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { getConversations, getOrCreateDirectConversation } from '@/lib/api/conversations'
-import { getProfileByUsername } from '@/lib/api/profiles'
+import { getConversations, getOrCreateDirectConversation, getConversationById } from '@/lib/api/conversations'
+import { getProfileByUsername, searchProfiles } from '@/lib/api/profiles'
+import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -26,6 +27,24 @@ export function Sidebar() {
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [showKeySettings, setShowKeySettings] = useState(false)
 
+  const [searchResults, setSearchResults] = useState([])
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (search.trim().length >= 2) {
+        try {
+          const results = await searchProfiles(search)
+          setSearchResults(results.filter(r => r.id !== user?.id))
+        } catch (err) {
+          console.error('Search error', err)
+        }
+      } else {
+        setSearchResults([])
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search, user])
+
   useEffect(() => {
     async function loadConversations() {
       if (!user) return
@@ -40,6 +59,104 @@ export function Sidebar() {
     }
     loadConversations()
   }, [user])
+
+  const activeId = params?.id
+
+  // Helper to check unread
+  function isConvUnread(conv) {
+    if (activeId === conv.id) return false
+    const myParticipant = conv.conversation_participants?.find(p => p.profiles?.id === user?.id)
+    if (!myParticipant) return false
+    
+    if (!conv.last_message_at) return false
+    if (!myParticipant.last_read_at) return true
+    
+    return new Date(conv.last_message_at).getTime() > new Date(myParticipant.last_read_at).getTime()
+  }
+
+  // Effect for global notifications
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase.channel('global-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        async (payload) => {
+          const newMsg = payload.new
+          let isUnknown = false
+          const updatedConvDate = newMsg.created_at || new Date().toISOString()
+          
+          setConversations((prev) => {
+            const exists = prev.find(c => c.id === newMsg.conversation_id)
+            if (!exists) {
+               isUnknown = true
+               return prev
+            }
+            
+            const updated = prev.map((c) => {
+              if (c.id === newMsg.conversation_id) {
+                const newC = { ...c, last_message_at: updatedConvDate }
+                if (activeId === c.id) {
+                   const myParticipantIdx = newC.conversation_participants?.findIndex(p => p.profiles?.id === user?.id)
+                   if (myParticipantIdx > -1) {
+                     newC.conversation_participants[myParticipantIdx].last_read_at = new Date().toISOString()
+                   }
+                }
+                return newC
+              }
+              return c
+            })
+
+            updated.sort((a, b) => {
+               const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : new Date(a.created_at).getTime()
+               const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : new Date(b.created_at).getTime()
+               return bTime - aTime
+            })
+            return updated
+          })
+          
+          if (isUnknown) {
+            try {
+              const fetched = await getConversationById(newMsg.conversation_id)
+              if (fetched) {
+                 fetched.last_message_at = updatedConvDate
+                 setConversations(prev => {
+                   const updated = [fetched, ...prev]
+                   return updated
+                 })
+              }
+            } catch (err) {
+              console.error('Failed to fetch new conversation', err)
+            }
+          }
+        }
+      )
+      .subscribe()
+    
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [user, activeId])
+
+  // Clear local unread status actively when navigating to a conversation
+  useEffect(() => {
+    if (!activeId || !user) return
+    setConversations(prev => prev.map(c => {
+      if (c.id === activeId) {
+        const myIdx = c.conversation_participants?.findIndex(p => p.profiles?.id === user?.id)
+        if (myIdx > -1) {
+          const newC = { ...c }
+          newC.conversation_participants = [...newC.conversation_participants]
+          newC.conversation_participants[myIdx] = {
+            ...newC.conversation_participants[myIdx],
+            last_read_at: new Date().toISOString()
+          }
+          return newC
+        }
+      }
+      return c
+    }))
+  }, [activeId, user])
 
   async function handleSearch(e) {
     e.preventDefault()
@@ -76,7 +193,6 @@ export function Sidebar() {
     }
   }
 
-  const activeId = params?.id
 
   // Separate direct and group conversations
   const directConversations = conversations.filter(c => c.type === 'direct')
@@ -92,17 +208,48 @@ export function Sidebar() {
         <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-zinc-500">
           Rechercher
         </h2>
-        <form onSubmit={handleSearch} className="flex gap-2">
+        <form onSubmit={handleSearch} className="flex gap-2 relative">
           <div className="relative flex-1">
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">@</span>
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="pseudo"
-              className="pl-7"
+              className="pl-7 w-full"
               autoComplete="off"
               spellCheck={false}
             />
+
+            {searchResults.length > 0 && search.trim().length >= 2 && (
+              <div className="absolute top-full mt-1 left-0 w-[150%] max-w-sm bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl overflow-hidden z-50">
+                {searchResults.map((res) => (
+                  <button
+                    key={res.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700 hover:text-white transition flex items-center gap-2"
+                    onClick={async () => {
+                      setSearch('')
+                      setSearchResults([])
+                      setSearchLoading(true)
+                      try {
+                        const convId = await getOrCreateDirectConversation(res.id)
+                        router.push(`/chat/${convId}`)
+                      } catch (err) {
+                        console.error(err)
+                        setSearchError('Impossible d\'ouvrir la discussion.')
+                      } finally {
+                        setSearchLoading(false)
+                      }
+                    }}
+                  >
+                    <div className="w-6 h-6 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center text-xs font-bold shrink-0">
+                      {res.username.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="truncate">{res.username}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <Button type="submit" disabled={searchLoading || !search.trim()}>
             {searchLoading ? <Spinner className="h-4 w-4" /> : 'Aller'}
@@ -140,16 +287,24 @@ export function Sidebar() {
                   <li key={conv.id}>
                     <Link
                       href={`/chat/${conv.id}`}
-                      className={`block rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                      className={`block relative rounded-xl px-3 py-2.5 text-sm transition-colors ${
                         isActive
                           ? 'bg-zinc-800 text-white'
-                          : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
+                          : isConvUnread(conv) ? 'text-zinc-200 bg-violet-500/10 border border-violet-500/30' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
+                      {isConvUnread(conv) && !isActive && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                           <span className="flex h-3 w-3">
+                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                             <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-500"></span>
+                           </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 pl-2 pr-6">
                         <span className="text-lg">👥</span>
                         <div className="flex-1">
-                          <div className="truncate font-medium">
+                          <div className={`truncate ${isConvUnread(conv) ? 'font-bold text-violet-200' : 'font-medium'}`}>
                             {conv.name?.trim() || 'Groupe sans nom'}
                           </div>
                           <div className="text-xs text-zinc-500">{participantCount} membres</div>
@@ -189,13 +344,21 @@ export function Sidebar() {
                   <li key={conv.id}>
                     <Link
                       href={`/chat/${conv.id}`}
-                      className={`block rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                      className={`block relative rounded-xl px-3 py-2.5 text-sm transition-colors ${
                         isActive
                           ? 'bg-zinc-800 text-white'
-                          : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
+                          : isConvUnread(conv) ? 'text-zinc-200 bg-violet-500/10 border border-violet-500/30' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
                       }`}
                     >
-                      <div className="font-medium">@{other.username}</div>
+                      {isConvUnread(conv) && !isActive && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                           <span className="flex h-3 w-3">
+                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                             <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-500"></span>
+                           </span>
+                        </div>
+                      )}
+                      <div className={`pl-2 pr-6 truncate ${isConvUnread(conv) ? 'font-bold text-violet-200' : 'font-medium'}`}>@{other.username}</div>
                     </Link>
                   </li>
                 )

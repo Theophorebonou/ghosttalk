@@ -26,7 +26,7 @@ export async function getProfileByUsername(username) {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('username', username)
+    .ilike('username', username)
     .maybeSingle()
 
   if (error) throw error
