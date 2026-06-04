@@ -100,13 +100,9 @@ export function getTheme(themeId) {
 export function applyTheme(themeId) {
   const theme = getTheme(themeId)
   const root = document.documentElement
-  
-  Object.entries(theme.colors).forEach(([key, value]) => {
-    root.style.setProperty(`--color-${key}`, value)
-  })
-  
-  // Apply Tailwind-like classes via CSS variables
+
   root.style.setProperty('--background', theme.colors.background)
+  root.style.setProperty('--foreground', theme.colors.text)
   root.style.setProperty('--surface', theme.colors.surface)
   root.style.setProperty('--surface-highlight', theme.colors.surfaceHighlight)
   root.style.setProperty('--border', theme.colors.border)
@@ -115,4 +111,11 @@ export function applyTheme(themeId) {
   root.style.setProperty('--primary', theme.colors.primary)
   root.style.setProperty('--primary-hover', theme.colors.primaryHover)
   root.style.setProperty('--accent', theme.colors.accent)
+  root.style.setProperty('--success', theme.colors.success)
+  root.style.setProperty('--error', theme.colors.error)
+  root.style.setProperty('--warning', theme.colors.warning)
+
+  Object.entries(theme.colors).forEach(([key, value]) => {
+    root.style.setProperty(`--color-${key}`, value)
+  })
 }

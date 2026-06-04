@@ -62,13 +62,7 @@ export class CallManager {
       }
 
       // Créer l'offre
-      const offer = await this.peerConnection.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: callType === 'video',
-      })
-      await this.peerConnection.setLocalDescription(offer)
-
-      // Créer l'appel dans la base de données
+      // Créer l'appel en base AVANT tout
       const { data: call } = await supabase.rpc('create_call', {
         p_callee_id: calleeId,
         p_call_type: callType,
@@ -76,12 +70,23 @@ export class CallManager {
       })
       this.callId = call
 
-      // Envoyer l'offre via signalisation
-      await this.sendSignal('offer', offer)
-
-      // S'abonner aux signaux de réponse
+      // S'abonner AVANT d'envoyer l'offre
       this.subscribeToSignals()
 
+      // Envoyer les candidats ICE au fur et à mesure
+      this.peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          this.sendSignal('ice_candidate', event.candidate)
+        }
+      }
+
+      // Créer et envoyer l'offre
+      const offer = await this.peerConnection.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: callType === 'video',
+      })
+      await this.peerConnection.setLocalDescription(offer)
+      await this.sendSignal('offer', offer)
       return call
     } catch (err) {
       this.onCallError?.(err)
@@ -113,6 +118,12 @@ export class CallManager {
       }
 
       this.peerConnection = new RTCPeerConnection(rtcConfig)
+            // Envoyer les candidats ICE
+      this.peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          this.sendSignal('ice_candidate', event.candidate)
+        }
+      }
 
       // Obtenir le flux local
       const constraints = {
@@ -172,6 +183,12 @@ export class CallManager {
 
       // S'abonner aux signaux ICE
       this.subscribeToSignals()
+      // Juste après avoir créé le peerConnection
+      this.peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          this.sendSignal('ice_candidate', event.candidate)
+        }
+      }
 
       return answer
     } catch (err) {
