@@ -1,19 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: #1a1a2e;
-  --foreground: #e2e8f0;
-  --accent: #8b5cf6;
-  --surface: #16213e;
-  --surface-highlight: #2a2838;
-  --border: #4a4e69;
-  --text: #e2e8f0;
-  --text-muted: #94a3b8;
-  --primary: #8b5cf6;
-  --primary-hover: #7c3aed;
-  --success: #10b981;
-  --error: #ef4444;
-  --warning: #f59e0b;
+  /* WhatsApp/Telegram inspired dark theme */
+  --background: #0b141a;
+  --foreground: #e9edef;
+  --accent: #00a884;
+  --surface: #111b21;
+  --surface-highlight: #202c33;
+  --border: #2a3942;
+  --text: #e9edef;
+  --text-muted: #8696a0;
+  --primary: #00a884;
+  --primary-hover: #06cf9c;
+  --success: #00a884;
+  --error: #ea4335;
+  --warning: #f7c948;
+  --message-out: #005c4b;
+  --message-in: #202c33;
 }
 
 @theme inline {
@@ -30,6 +33,8 @@
   --color-success: var(--success);
   --color-error: var(--error);
   --color-warning: var(--warning);
+  --color-message-out: var(--message-out);
+  --color-message-in: var(--message-in);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -40,224 +45,103 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-/* ——— GhostTalk ambient animations ——— */
+/* Smooth scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
 
-@keyframes ghost-float {
-  0%,
-  100% {
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Subtle animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
     transform: translateY(0);
   }
-  50% {
-    transform: translateY(-14px);
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
-@keyframes ghost-logo-float {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
   }
   50% {
-    transform: translateY(-6px) scale(1.05);
-  }
-}
-
-@keyframes ghost-eye-glow {
-  0%,
-  100% {
     opacity: 0.5;
   }
-  50% {
-    opacity: 1;
-  }
 }
 
-@keyframes ghost-shadow-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: scaleX(1);
-  }
-  50% {
-    opacity: 0.55;
-    transform: scaleX(1.08);
-  }
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
 }
 
-@keyframes ghost-mist-drift {
-  0% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.15;
-  }
-  50% {
-    opacity: 0.28;
-  }
-  100% {
-    transform: translate(4%, -3%) scale(1.05);
-    opacity: 0.15;
-  }
+.animate-slide-in {
+  animation: slide-in-right 0.2s ease-out;
 }
 
-@keyframes ghost-particle-rise {
-  0% {
-    transform: translateY(0) scale(1);
-    opacity: 0;
-  }
-  15% {
-    opacity: 0.6;
-  }
-  85% {
-    opacity: 0.3;
-  }
-  100% {
-    transform: translateY(-120px) scale(0.4);
-    opacity: 0;
-  }
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
-@keyframes ghost-fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Message bubble tails - WhatsApp style */
+.bubble-tail-out {
+  position: relative;
 }
 
-@keyframes ghost-panel-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes ghost-ring-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 40px rgba(124, 58, 237, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 56px rgba(124, 58, 237, 0.4);
-  }
-}
-
-.ghost-figure-float {
-  animation: ghost-float 7s ease-in-out infinite;
-}
-
-.ghost-logo-float {
-  animation: ghost-logo-float 4s ease-in-out infinite;
-}
-
-.ghost-eye-glow {
-  animation: ghost-eye-glow 3s ease-in-out infinite;
-}
-
-.ghost-shadow-pulse {
-  animation: ghost-shadow-pulse 5s ease-in-out infinite;
-  transform-origin: center;
-}
-
-.ghost-mist {
+.bubble-tail-out::before {
+  content: '';
   position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  animation: ghost-mist-drift 14s ease-in-out infinite alternate;
+  top: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid var(--message-out);
+  border-top: 8px solid transparent;
 }
 
-.ghost-mist-a {
-  width: 55%;
-  height: 40%;
-  left: -10%;
-  top: 20%;
-  background: rgba(167, 139, 250, 0.18);
+.bubble-tail-in {
+  position: relative;
 }
 
-.ghost-mist-b {
-  width: 45%;
-  height: 35%;
-  right: -5%;
-  bottom: 15%;
-  background: rgba(139, 92, 246, 0.14);
-  animation-delay: -5s;
-}
-
-.ghost-mist-c {
-  width: 40%;
-  height: 30%;
-  left: 30%;
-  bottom: 5%;
-  background: rgba(167, 139, 250, 0.1);
-  animation-delay: -8s;
-}
-
-.ghost-particle {
+.bubble-tail-in::before {
+  content: '';
   position: absolute;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: rgba(167, 139, 250, 0.7);
-  box-shadow: 0 0 8px rgba(167, 139, 250, 0.5);
-  animation: ghost-particle-rise linear infinite;
-}
-
-.ghost-logo-ring {
-  animation: ghost-ring-pulse 4s ease-in-out infinite;
-}
-
-.ghost-stagger-1 {
-  animation: ghost-fade-in-up 0.7s ease-out both;
-}
-
-.ghost-stagger-2 {
-  animation: ghost-fade-in-up 0.7s ease-out 0.12s both;
-}
-
-.ghost-stagger-3 {
-  animation: ghost-fade-in-up 0.7s ease-out 0.24s both;
-}
-
-.ghost-stagger-4 {
-  animation: ghost-fade-in-up 0.7s ease-out 0.36s both;
-}
-
-.ghost-stagger-5 {
-  animation: ghost-fade-in-up 0.7s ease-out 0.48s both;
-}
-
-.ghost-panel-enter {
-  animation: ghost-panel-in 0.45s ease-out both;
-}
-
-.ghost-card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-right: 8px solid var(--message-in);
+  border-top: 8px solid transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ghost-figure-float,
-  .ghost-logo-float,
-  .ghost-eye-glow,
-  .ghost-shadow-pulse,
-  .ghost-mist,
-  .ghost-particle,
-  .ghost-logo-ring,
-  .ghost-stagger-1,
-  .ghost-stagger-2,
-  .ghost-stagger-3,
-  .ghost-stagger-4,
-  .ghost-stagger-5,
-  .ghost-panel-enter {
+  .animate-fade-in,
+  .animate-slide-in,
+  .animate-pulse-dot {
     animation: none;
-  }
-
-  .ghost-card-hover:hover {
-    transform: none;
   }
 }

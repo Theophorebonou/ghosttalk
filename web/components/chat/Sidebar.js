@@ -306,276 +306,227 @@ export function Sidebar() {
     : 'flex w-full md:w-80'
 
   return (
-    <aside className={`relative z-10 h-full shrink-0 flex-col border-r border-border bg-surface/90 backdrop-blur-xl ${sidebarClasses}`}>
-      <div className="p-4">
-        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-text-muted">
-          Rechercher
-        </h2>
-        <form onSubmit={handleSearch} className="flex gap-2 relative">
-          <div className="relative flex-1">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">@</span>
+    <aside className={`relative z-10 h-full shrink-0 flex-col border-r border-border bg-surface ${sidebarClasses}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border bg-surface-highlight px-4 py-3">
+        <h1 className="text-lg font-semibold text-text">GhostTalk</h1>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setShowCreateGroup(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
+            title="Nouveau groupe"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
+            title="Parametres"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="p-2">
+        <form onSubmit={handleSearch} className="relative">
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="pseudo"
-              className="pl-7 w-full"
+              placeholder="Rechercher ou demarrer une discussion"
+              className="w-full rounded-lg bg-surface-highlight pl-10 pr-4 py-2 text-sm"
               autoComplete="off"
               spellCheck={false}
             />
-
-            {searchResults.length > 0 && search.trim().length >= 2 && (
-              <div className="absolute top-full mt-1 left-0 w-[150%] max-w-sm bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl overflow-hidden z-50">
-                {searchResults.map((res) => (
-                  <button
-                    key={res.id}
-                    type="button"
-                    className="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700 hover:text-white transition flex items-center gap-2"
-                    onClick={async () => {
-                      setSearch('')
-                      setSearchResults([])
-                      setSearchLoading(true)
-                      try {
-                        // Vérifier si l'utilisateur est bloqué
-                        const blocked = await isUserBlocked(res.id)
-                        if (blocked) {
-                          setSearchError(`Vous avez bloqué @${res.username}. Débloquez cet utilisateur pour discuter.`)
-                          return
-                        }
-                        
-                        const convId = await getOrCreateDirectConversation(res.id)
-                        router.push(`/chat/${convId}`)
-                      } catch (err) {
-                        console.error(err)
-                        setSearchError('Impossible d\'ouvrir la discussion.')
-                      } finally {
-                        setSearchLoading(false)
-                      }
-                    }}
-                  >
-                    <div className="w-6 h-6 rounded-full bg-violet-500/20 text-violet-400 flex items-center justify-center text-xs font-bold shrink-0">
-                      {res.username.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="truncate">{res.username}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-          <Button type="submit" disabled={searchLoading || !search.trim()}>
-            {searchLoading ? <Spinner className="h-4 w-4" /> : 'Aller'}
-          </Button>
+
+          {searchResults.length > 0 && search.trim().length >= 2 && (
+            <div className="absolute top-full mt-1 left-0 right-0 bg-surface border border-border rounded-lg shadow-xl overflow-hidden z-50 animate-fade-in">
+              {searchResults.map((res) => (
+                <button
+                  key={res.id}
+                  type="button"
+                  className="w-full text-left px-4 py-3 text-sm text-text hover:bg-surface-highlight transition flex items-center gap-3"
+                  onClick={async () => {
+                    setSearch('')
+                    setSearchResults([])
+                    setSearchLoading(true)
+                    try {
+                      const blocked = await isUserBlocked(res.id)
+                      if (blocked) {
+                        setSearchError(`Vous avez bloque @${res.username}. Debloquez cet utilisateur pour discuter.`)
+                        return
+                      }
+                      const convId = await getOrCreateDirectConversation(res.id)
+                      router.push(`/chat/${convId}`)
+                    } catch (err) {
+                      console.error(err)
+                      setSearchError('Impossible d\'ouvrir la discussion.')
+                    } finally {
+                      setSearchLoading(false)
+                    }
+                  }}
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-semibold">
+                    {res.username.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="truncate font-medium">{res.username}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </form>
-        {searchError && <p className="mt-2 text-xs text-red-500">{searchError}</p>}
+        {searchError && <p className="mt-2 px-2 text-xs text-error">{searchError}</p>}
       </div>
 
       <StoriesBar />
 
-      <div className="flex-1 overflow-y-auto p-2">
-        {folders.length > 0 && (
-          <div className="mb-4">
-            <div className="mb-2 flex items-center justify-between px-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Dossiers
-              </h2>
-              <button
-                onClick={() => setShowFolderManager(true)}
-                className="text-xs text-violet-400 hover:text-violet-300"
-              >
-                + Nouveau
-              </button>
-            </div>
-            <div className="space-y-1">
-              {folders.map((folder) => (
-                <button
-                  key={folder.id}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800"
-                >
-                  <span className="text-lg">{folder.icon}</span>
-                  <span className="flex-1 truncate">{folder.name}</span>
-                </button>
-              ))}
-            </div>
+      {/* Conversations list */}
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Spinner className="h-6 w-6 text-primary" />
           </div>
-        )}
-
-        <div className="mb-4">
-          <div className="mb-2 flex items-center justify-between px-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Groupes
-            </h2>
-            <button
-              onClick={() => setShowCreateGroup(true)}
-              className="text-xs text-violet-400 hover:text-violet-300"
-            >
-              + Créer
-            </button>
-          </div>
-          {loading ? (
-            <div className="flex justify-center p-4">
-              <Spinner className="h-5 w-5" />
-            </div>
-          ) : groupConversations.length === 0 ? (
-            <p className="px-2 text-sm text-zinc-500">Aucun groupe.</p>
-          ) : (
-            <ul className="space-y-1">
-              {groupConversations.map((conv) => {
-                const isActive = activeId === conv.id
-                const participantCount = conv.conversation_participants.length
-
-                return (
-                  <li key={conv.id}>
-                    <Link
-                      href={`/chat/${conv.id}`}
-                      className={`block relative rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                        isActive
-                          ? 'bg-surface-highlight text-text'
-                          : isConvUnread(conv) ? 'text-text bg-primary/10 border border-primary/30' : 'text-text-muted hover:bg-surface-highlight hover:text-text'
-                      }`}
-                    >
-                      {isConvUnread(conv) && !isActive && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                           <span className="flex h-3 w-3">
-                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                             <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-500"></span>
-                           </span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 pl-2 pr-6">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-800/80 text-violet-400/90">
-                          <GroupIcon className="h-4 w-4" />
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className={`truncate flex items-center gap-1 ${isConvUnread(conv) ? 'font-bold text-violet-200' : 'font-medium'}`}>
-                            {conv.name?.trim() || 'Groupe sans nom'}
-                            {isMuted(conv) && <span className="text-zinc-500 text-xs">🔕</span>}
-                          </div>
-                          <div className="text-xs text-zinc-500">{participantCount} membres</div>
-                        </div>
-                      </div>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-
-        <div>
-          <h2 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-            Discussions directes
-          </h2>
-          {loading ? (
-            <div className="flex justify-center p-4">
-              <Spinner className="h-5 w-5" />
-            </div>
-          ) : directConversations.length === 0 ? (
-            <p className="px-2 text-sm text-zinc-500">Aucune discussion.</p>
-          ) : (
-            <ul className="space-y-1">
-              {directConversations.map((conv) => {
-                // Find the other participant
-                const other = conv.conversation_participants.find(
-                  (cp) => cp.profiles.id !== user?.id
-                )?.profiles
-
-                if (!other) return null
-
-                const isActive = activeId === conv.id
-
-                return (
-                  <li key={conv.id}>
-                    <Link
-                      href={`/chat/${conv.id}`}
-                      className={`block relative rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                        isActive
-                          ? 'bg-surface-highlight text-text'
-                          : isConvUnread(conv) ? 'text-text bg-primary/10 border border-primary/30' : 'text-text-muted hover:bg-surface-highlight hover:text-text'
-                      }`}
-                    >
-                      {isConvUnread(conv) && !isActive && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center">
-                           <span className="flex h-3 w-3">
-                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                             <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-500"></span>
-                           </span>
-                        </div>
-                      )}
-                      <div className={`pl-2 pr-6 truncate flex items-center gap-1 ${isConvUnread(conv) ? 'font-bold text-primary' : 'font-medium'}`}>
-                        @{other.username}
-                        {isMuted(conv) && <span className="text-text-muted text-xs">🔕</span>}
-                      </div>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-
-        {archivedConversations.length > 0 && (
-          <div className="mt-4">
-            <h2 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-600">
-              Archivées
-            </h2>
-            <ul className="space-y-1">
-              {archivedConversations.map((conv) => {
-                const other =
-                  conv.type === 'direct'
-                    ? conv.conversation_participants.find((cp) => cp.profiles?.id !== user?.id)
-                        ?.profiles
+        ) : (
+          <>
+            {/* All conversations combined and sorted by last message */}
+            {activeConversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-highlight">
+                  <svg className="h-8 w-8 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-text-muted">Aucune conversation</p>
+                <p className="mt-1 text-xs text-text-muted">Recherchez un utilisateur pour commencer</p>
+              </div>
+            ) : (
+              <ul>
+                {activeConversations.map((conv) => {
+                  const isGroup = conv.type === 'group'
+                  const other = !isGroup
+                    ? conv.conversation_participants.find((cp) => cp.profiles?.id !== user?.id)?.profiles
                     : null
-                const label =
-                  conv.type === 'group'
-                    ? conv.name || 'Groupe'
-                    : other
-                      ? `@${other.username}`
-                      : 'Discussion'
-                return (
-                  <li key={conv.id}>
-                    <Link
-                      href={`/chat/${conv.id}`}
-                      className={`block rounded-xl px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-900 ${
-                        activeId === conv.id ? 'bg-zinc-800 text-zinc-300' : ''
-                      }`}
-                    >
-                      {label}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
+                  const isActive = activeId === conv.id
+                  const unread = isConvUnread(conv)
+                  const muted = isMuted(conv)
+                  const participantCount = conv.conversation_participants?.length || 0
+
+                  const displayName = isGroup
+                    ? conv.name?.trim() || 'Groupe'
+                    : other?.username || 'Utilisateur'
+
+                  const lastMessageTime = conv.last_message_at
+                    ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : ''
+
+                  return (
+                    <li key={conv.id}>
+                      <Link
+                        href={`/chat/${conv.id}`}
+                        className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                          isActive
+                            ? 'bg-surface-highlight'
+                            : 'hover:bg-surface-highlight/50'
+                        }`}
+                      >
+                        {/* Avatar */}
+                        <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
+                          isGroup ? 'bg-primary/20' : 'bg-surface-highlight'
+                        }`}>
+                          {isGroup ? (
+                            <GroupIcon className="h-6 w-6 text-primary" />
+                          ) : (
+                            <span className="text-lg font-semibold text-text">
+                              {displayName.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                          {unread && !isActive && (
+                            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-primary animate-pulse-dot" />
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`truncate ${unread ? 'font-semibold text-text' : 'font-medium text-text'}`}>
+                              {isGroup ? displayName : `@${displayName}`}
+                            </span>
+                            <span className={`text-xs shrink-0 ${unread ? 'text-primary font-medium' : 'text-text-muted'}`}>
+                              {lastMessageTime}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {muted && (
+                              <svg className="h-4 w-4 text-text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipRule="evenodd" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                              </svg>
+                            )}
+                            <span className={`truncate text-sm ${unread ? 'text-text' : 'text-text-muted'}`}>
+                              {isGroup ? `${participantCount} membres` : 'Message chiffre'}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+
+            {/* Archived */}
+            {archivedConversations.length > 0 && (
+              <div className="border-t border-border">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-text-muted hover:bg-surface-highlight/50 transition"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  <span>Archives ({archivedConversations.length})</span>
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
-      <div className="border-t border-border p-4">
-        <button
-          type="button"
-          onClick={() => setShowSettings(true)}
-          className="mb-3 flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left text-sm text-text-muted transition hover:bg-surface-highlight hover:text-text"
-        >
-          <span aria-hidden>⚙️</span>
-          Paramètres
-        </button>
+
+      {/* Profile footer */}
+      <div className="border-t border-border bg-surface-highlight px-4 py-3">
         {profile ? (
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-highlight font-bold text-primary">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-white">
               {profile.username.charAt(0).toUpperCase()}
             </div>
             <div className="flex flex-col truncate">
               <span className="truncate text-sm font-semibold text-text">
                 @{profile.username}
               </span>
-              <span className="truncate text-xs text-text-muted">
-                {user?.is_anonymous ? 'Mode Fantôme' : 'Compte connecté'}
+              <span className="flex items-center gap-1 text-xs text-text-muted">
+                <span className="h-2 w-2 rounded-full bg-primary" />
+                En ligne
               </span>
             </div>
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-zinc-800" />
+            <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-surface" />
             <div className="flex flex-col gap-1">
-              <div className="h-4 w-20 animate-pulse rounded bg-zinc-800" />
-              <div className="h-3 w-16 animate-pulse rounded bg-zinc-800" />
+              <div className="h-4 w-20 animate-pulse rounded bg-surface" />
+              <div className="h-3 w-16 animate-pulse rounded bg-surface" />
             </div>
           </div>
         )}

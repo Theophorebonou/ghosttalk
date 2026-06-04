@@ -286,62 +286,68 @@ export function ChatInput({
     <>
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-2 border-t border-violet-500/10 bg-[#2a2838]/80 p-2 sm:p-4 backdrop-blur-md"
+        className="flex flex-col gap-2 border-t border-border bg-surface-highlight p-2 sm:p-3"
       >
         {editingMessage && (
-          <div className="flex items-center justify-between rounded-lg border-l-2 border-amber-500/50 bg-amber-950/20 p-2 text-sm">
-            <span className="text-xs text-amber-300">Modification du message</span>
-            <button type="button" onClick={onCancelEdit} className="text-zinc-500 hover:text-zinc-300">
-              ✕
+          <div className="flex items-center justify-between rounded-lg border-l-2 border-warning bg-warning/10 px-3 py-2 text-sm">
+            <span className="text-xs text-warning">Modification du message</span>
+            <button type="button" onClick={onCancelEdit} className="text-text-muted hover:text-text transition">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
         )}
 
         {storyReplyContext && (
-          <div className="flex items-center justify-between rounded-lg border-l-2 border-fuchsia-500/50 bg-fuchsia-950/20 p-2 text-sm">
+          <div className="flex items-center justify-between rounded-lg border-l-2 border-primary bg-primary/10 px-3 py-2 text-sm">
             <div className="truncate pr-4">
-              <span className="text-[10px] font-bold uppercase text-fuchsia-400">
-                Réponse au statut
+              <span className="text-[10px] font-semibold uppercase text-primary">
+                Reponse au statut
               </span>
-              <span className="block truncate text-xs text-zinc-300">
+              <span className="block truncate text-xs text-text">
                 @{storyReplyContext.authorUsername}
               </span>
             </div>
             <button
               type="button"
               onClick={onCancelStoryReply}
-              className="shrink-0 px-2 text-zinc-500 hover:text-zinc-300"
+              className="shrink-0 text-text-muted hover:text-text transition"
             >
-              ✕
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
         )}
 
         {replyToMessage && (
-          <div className="flex items-center justify-between rounded-lg border-l-2 border-violet-500/50 bg-black/20 p-2 text-sm">
+          <div className="flex items-center justify-between rounded-lg border-l-2 border-primary bg-primary/10 px-3 py-2 text-sm">
             <div className="flex flex-col truncate pr-4">
-              <span className="text-[10px] font-bold uppercase text-violet-400">
-                En réponse à un message
+              <span className="text-[10px] font-semibold uppercase text-primary">
+                En reponse
               </span>
-              <span className="truncate text-xs text-zinc-300">
+              <span className="truncate text-xs text-text">
                 {replyToMessage.payload?.t === 'text'
                   ? replyToMessage.payload.b
-                  : 'Contenu multimédia'}
+                  : 'Contenu multimedia'}
               </span>
             </div>
             <button
               type="button"
               onClick={onCancelReply}
-              className="shrink-0 px-2 text-zinc-500 hover:text-zinc-300"
+              className="shrink-0 text-text-muted hover:text-text transition"
             >
-              ✕
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
         )}
 
-        {status && <p className="text-center text-xs text-violet-300">{status}</p>}
+        {status && <p className="text-center text-xs text-primary">{status}</p>}
 
-        {/* Sans trace */}
+        {/* Ephemeral mode toggle */}
         {!isRecording && (
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
@@ -349,52 +355,54 @@ export function ChatInput({
                 type="button"
                 disabled={disabled || loading}
                 onClick={() => setShowEphemeralMenu((v) => !v)}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] transition ${
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition ${
                   ephemeralMode
-                    ? 'border-violet-500/50 bg-violet-600/20 text-violet-200'
-                    : 'border-zinc-700 text-zinc-400 hover:border-violet-500/30 hover:text-zinc-300'
+                    ? 'bg-primary/20 text-primary'
+                    : 'bg-surface text-text-muted hover:text-text'
                 }`}
-                title="Message sans trace"
+                title="Message ephemere"
               >
-                <span aria-hidden>👁‍🗨</span>
-                {ephemeralLabel ?? 'Sans trace'}
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {ephemeralLabel ?? 'Ephemere'}
               </button>
               {showEphemeralMenu && (
-                <div className="absolute bottom-full left-0 z-20 mb-1 min-w-[180px] rounded-xl border border-zinc-700 bg-zinc-900 p-1 shadow-xl">
+                <div className="absolute bottom-full left-0 z-20 mb-1 min-w-[180px] rounded-lg border border-border bg-surface p-1 shadow-xl animate-fade-in">
                   <button
                     type="button"
-                    className="w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800"
+                    className="w-full rounded-md px-3 py-2 text-left text-xs text-text-muted hover:bg-surface-highlight hover:text-text transition"
                     onClick={() => {
                       setEphemeralMode(null)
                       setShowEphemeralMenu(false)
                     }}
                   >
-                    Désactivé
+                    Desactive
                   </button>
                   {EPHEMERAL_TIMER_OPTIONS.map((opt) => (
                     <button
                       key={opt.id}
                       type="button"
-                      className="w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-200 hover:bg-zinc-800"
+                      className="w-full rounded-md px-3 py-2 text-left text-xs text-text hover:bg-surface-highlight transition"
                       onClick={() => {
                         setEphemeralMode({ kind: 'timer', seconds: opt.seconds })
                         setShowEphemeralMenu(false)
                       }}
                     >
-                      ⏱ {opt.label}
+                      {opt.label}
                     </button>
                   ))}
                   <button
                     type="button"
-                    className="w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-200 hover:bg-zinc-800"
+                    className="w-full rounded-md px-3 py-2 text-left text-xs text-text hover:bg-surface-highlight transition"
                     onClick={() => {
                       setEphemeralMode({ kind: 'after_read' })
                       setShowEphemeralMenu(false)
                     }}
                   >
-                    ✓ {EPHEMERAL_AFTER_READ.label}
+                    {EPHEMERAL_AFTER_READ.label}
                   </button>
-                  <p className="px-3 py-1 text-[10px] text-zinc-500">
+                  <p className="px-3 py-1 text-[10px] text-text-muted">
                     {EPHEMERAL_AFTER_READ.description}
                   </p>
                 </div>
@@ -503,75 +511,21 @@ export function ChatInput({
               className="hidden"
               onChange={handleFileChange}
             />
+            
+            {/* Attachment button */}
             <button
               type="button"
               disabled={disabled || loading}
               onClick={() => fileRef.current?.click()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-lg text-zinc-300 transition hover:border-violet-500 hover:text-violet-300 disabled:opacity-40"
-              title="Envoyer une pièce jointe"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text disabled:opacity-40"
+              title="Piece jointe"
             >
-              📎
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
             </button>
 
-            {onSendPoll && (
-              <button
-                type="button"
-                disabled={disabled || loading}
-                onClick={() => setShowPollModal(true)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-lg text-zinc-300 transition hover:border-violet-500 hover:text-violet-300 disabled:opacity-40"
-                title="Créer un sondage"
-              >
-                📊
-              </button>
-            )}
-
-            {onScheduleMessage && (
-              <button
-                type="button"
-                disabled={disabled || loading}
-                onClick={() => setShowScheduleModal(true)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-lg text-zinc-300 transition hover:border-violet-500 hover:text-violet-300 disabled:opacity-40"
-                title="Programmer l'envoi"
-              >
-                📅
-              </button>
-            )}
-
-            {onSendSticker && (
-              <button
-                type="button"
-                disabled={disabled || loading}
-                onClick={() => setShowStickerPicker(true)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-lg text-zinc-300 transition hover:border-violet-500 hover:text-violet-300 disabled:opacity-40"
-                title="Stickers"
-              >
-                😀
-              </button>
-            )}
-
-            {onStartCall && (
-              <>
-                <button
-                  type="button"
-                  disabled={disabled || loading}
-                  onClick={() => onStartCall('audio')}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-lg text-zinc-300 transition hover:border-violet-500 hover:text-violet-300 disabled:opacity-40"
-                  title="Appel audio"
-                >
-                  📞
-                </button>
-                <button
-                  type="button"
-                  disabled={disabled || loading}
-                  onClick={() => onStartCall('video')}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-lg text-zinc-300 transition hover:border-violet-500 hover:text-violet-300 disabled:opacity-40"
-                  title="Appel vidéo"
-                >
-                  📹
-                </button>
-              </>
-            )}
-
+            {/* Text input */}
             <div className="relative flex-1">
               <input
                 value={text}
@@ -588,12 +542,12 @@ export function ChatInput({
                 disabled={disabled || loading}
                 placeholder={
                   editingMessage
-                    ? 'Modifier le message…'
+                    ? 'Modifier le message...'
                     : ephemeralMode
-                      ? 'Message sans trace…'
-                      : 'Message chiffré…'
+                      ? 'Message ephemere...'
+                      : 'Tapez un message'
                 }
-                className="w-full rounded-full border border-zinc-700 bg-zinc-900 px-5 py-3 pr-12 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="w-full rounded-full bg-surface px-4 py-2.5 pr-12 text-sm text-text placeholder:text-text-muted focus:outline-none"
                 autoComplete="off"
               />
               {!text.trim() && (
@@ -601,40 +555,30 @@ export function ChatInput({
                   type="button"
                   disabled={disabled || loading}
                   onClick={startRecording}
-                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 transition hover:bg-violet-500/10 hover:text-violet-400"
+                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-text-muted transition hover:bg-surface-highlight hover:text-text"
                   title="Message vocal"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="h-5 w-5"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
-                  />
-                </svg>
-              </button>
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                </button>
               )}
             </div>
 
-            <Button
+            {/* Send button */}
+            <button
               type="submit"
               disabled={disabled || loading || !text.trim()}
-              className="shrink-0 rounded-full px-5 sm:px-6"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white transition hover:bg-primary-hover disabled:opacity-40"
             >
               {loading ? (
                 <Spinner className="h-5 w-5" />
-              ) : editingMessage ? (
-                'Enregistrer'
               ) : (
-                'Envoyer'
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
               )}
-            </Button>
+            </button>
           </div>
         )}
       </form>
