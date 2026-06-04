@@ -9,7 +9,10 @@ export const GHOST_VOICE_PRESETS = {
     id: 'phantom',
     label: 'Fantôme',
     description: 'Voix grave, réverbération spectrale',
-    pitch: 0.68,
+    pitch: 1,
+    lowshelfGain: 9,
+    lowshelfFreq: 200,
+    lowpassHz: 3000,
     ringHz: 55,
     ringDepth: 0.45,
     reverbMix: 0.35,
@@ -19,17 +22,21 @@ export const GHOST_VOICE_PRESETS = {
     id: 'wraith',
     label: 'Spectre',
     description: 'Voix aiguë et métallique',
-    pitch: 1.38,
+    pitch: 1.25,
     ringHz: 120,
     ringDepth: 0.55,
     reverbMix: 0.2,
     distortion: 0.15,
+    lowpassHz: 5200,
   },
   void: {
     id: 'void',
     label: 'Abîme',
-    description: 'Voix très basse, saturée',
-    pitch: 0.52,
+    description: 'Voix très grave, saturée',
+    pitch: 1,
+    lowshelfGain: 14,
+    lowshelfFreq: 140,
+    lowpassHz: 2400,
     ringHz: 40,
     ringDepth: 0.6,
     reverbMix: 0.45,
@@ -73,11 +80,13 @@ async function decodeToBuffer(arrayBuffer) {
 }
 
 /**
- * Applique pitch shift (playbackRate), ring modulation, saturation et reverb.
+ * Ring modulation, saturation, reverb ; pitch optionnel (ralentit si ≠ 1).
+ * Voix grave via lowshelf sans changer la vitesse (pitch = 1).
  */
 async function renderProcessedBuffer(sourceBuffer, preset) {
   const pitch = preset.pitch ?? 1
-  const duration = sourceBuffer.duration / pitch
+  const shiftPitch = Math.abs(pitch - 1) > 0.02
+  const duration = shiftPitch ? sourceBuffer.duration / pitch : sourceBuffer.duration
   const channels = sourceBuffer.numberOfChannels
   const sampleRate = sourceBuffer.sampleRate
 
@@ -85,7 +94,7 @@ async function renderProcessedBuffer(sourceBuffer, preset) {
 
   const source = offline.createBufferSource()
   source.buffer = sourceBuffer
-  source.playbackRate.value = pitch
+  source.playbackRate.value = shiftPitch ? pitch : 1
 
   const dry = offline.createGain()
   dry.gain.value = 0.55
@@ -110,8 +119,18 @@ async function renderProcessedBuffer(sourceBuffer, preset) {
 
   const low = offline.createBiquadFilter()
   low.type = 'lowpass'
-  low.frequency.value = pitch < 1 ? 3200 : 5200
+  low.frequency.value = preset.lowpassHz ?? (shiftPitch && pitch < 1 ? 3200 : 5200)
   low.Q.value = 0.7
+
+  let toneTail = low
+  if (preset.lowshelfGain) {
+    const shelf = offline.createBiquadFilter()
+    shelf.type = 'lowshelf'
+    shelf.frequency.value = preset.lowshelfFreq ?? 200
+    shelf.gain.value = preset.lowshelfGain
+    low.connect(shelf)
+    toneTail = shelf
+  }
 
   const convolver = offline.createConvolver()
   convolver.buffer = buildImpulseResponse(offline, 0.4, 2.5)
@@ -120,8 +139,8 @@ async function renderProcessedBuffer(sourceBuffer, preset) {
   source.connect(ringGain)
   ringGain.connect(shaper)
   shaper.connect(low)
-  low.connect(dry)
-  low.connect(convolver)
+  toneTail.connect(dry)
+  toneTail.connect(convolver)
   convolver.connect(wet)
   dry.connect(offline.destination)
   wet.connect(offline.destination)

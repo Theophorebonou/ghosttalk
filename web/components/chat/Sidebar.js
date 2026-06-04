@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { getConversations, getOrCreateDirectConversation, getConversationById } from '@/lib/api/conversations'
@@ -15,8 +15,11 @@ import { Spinner } from '@/components/ui/Spinner'
 import { CreateGroupModal } from './CreateGroupModal'
 import { KeySettingsModal } from '@/components/auth/KeySettingsModal'
 import { AppSettingsModal } from '@/components/settings/AppSettingsModal'
+import { maybeNotifyIncomingMessage } from '@/lib/notifications'
+import { NotificationSetupBanner } from '@/components/settings/NotificationSetupBanner'
 import { StoriesBar } from '@/components/stories/StoriesBar'
 import { GroupIcon } from '@/components/ui/GroupIcon'
+import { formatConversationListTime } from '@/lib/utils/messageDates'
 
 export function Sidebar() {
   const params = useParams()
@@ -81,6 +84,10 @@ export function Sidebar() {
   }, [user])
 
   const activeId = params?.id
+  const activeIdRef = useRef(activeId)
+  useEffect(() => {
+    activeIdRef.current = activeId
+  }, [activeId])
 
   // Helper to check unread
   function isConvUnread(conv) {
@@ -132,6 +139,19 @@ export function Sidebar() {
                const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : new Date(b.created_at).getTime()
                return bTime - aTime
             })
+
+            const conv = updated.find((c) => c.id === newMsg.conversation_id)
+            if (conv && newMsg.sender_id !== user?.id) {
+              queueMicrotask(() => {
+                maybeNotifyIncomingMessage({
+                  message: newMsg,
+                  conversation: conv,
+                  currentUserId: user.id,
+                  activeConversationId: activeIdRef.current,
+                })
+              })
+            }
+
             return updated
           })
           
@@ -144,6 +164,14 @@ export function Sidebar() {
                    const updated = [fetched, ...prev]
                    return updated
                  })
+                 if (newMsg.sender_id !== user?.id) {
+                   maybeNotifyIncomingMessage({
+                     message: newMsg,
+                     conversation: fetched,
+                     currentUserId: user.id,
+                     activeConversationId: activeIdRef.current,
+                   })
+                 }
               }
             } catch (err) {
               console.error('Failed to fetch new conversation', err)
@@ -334,6 +362,8 @@ export function Sidebar() {
         </div>
       </div>
 
+      <NotificationSetupBanner />
+
       {/* Search */}
       <div className="p-2">
         <form onSubmit={handleSearch} className="relative">
@@ -427,9 +457,7 @@ export function Sidebar() {
                     ? conv.name?.trim() || 'Groupe'
                     : other?.username || 'Utilisateur'
 
-                  const lastMessageTime = conv.last_message_at
-                    ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : ''
+                  const lastMessageTime = formatConversationListTime(conv.last_message_at)
 
                   return (
                     <li key={conv.id}>

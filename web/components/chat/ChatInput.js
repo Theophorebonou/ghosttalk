@@ -80,6 +80,10 @@ export function ChatInput({
   const streamRef = useRef(null)
   const chunksRef = useRef([])
   const recognitionRef = useRef(null)
+  const ghostVoiceEnabledRef = useRef(ghostVoiceEnabled)
+  const voicePresetRef = useRef(voicePreset)
+  ghostVoiceEnabledRef.current = ghostVoiceEnabled
+  voicePresetRef.current = voicePreset
 
   const voiceSupported = isGhostVoiceSupported()
   const speechSupported = isSpeechRecognitionSupported()
@@ -160,11 +164,14 @@ export function ChatInput({
         let ext = mimeType.includes('mp4') ? 'mp4' : 'webm'
         let outMime = mimeType
 
-        if (ghostVoiceEnabled && voiceSupported) {
+        const applyMask = ghostVoiceEnabledRef.current
+        const preset = voicePresetRef.current
+
+        if (applyMask && voiceSupported) {
           try {
             setStatus('Transformation de la voix…')
             const rawFile = new File([blob], `raw.${ext}`, { type: mimeType })
-            const processed = await processGhostVoice(rawFile, voicePreset)
+            const processed = await processGhostVoice(rawFile, preset)
             blob = processed
             ext = 'wav'
             outMime = 'audio/wav'
@@ -177,7 +184,7 @@ export function ChatInput({
 
         const file = new File(
           [blob],
-          `Vocal_${ghostVoiceEnabled ? 'Masque' : 'Fantome'}_${Date.now()}.${ext}`,
+          `Vocal_${applyMask ? 'Masque' : 'Fantome'}_${Date.now()}.${ext}`,
           { type: outMime }
         )
 
@@ -450,7 +457,7 @@ export function ChatInput({
                       Masquer ma voix
                     </span>
                     <p className="text-[10px] text-zinc-500">
-                      Transformation réelle (pitch + modulation)
+                      Activable pendant l&apos;enregistrement · grave sans ralentir
                     </p>
                   </div>
                   <input

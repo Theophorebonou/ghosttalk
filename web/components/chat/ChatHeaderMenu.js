@@ -86,7 +86,7 @@ export function ChatHeaderMenu({
                 })
               }
             >
-              Activer les notifications
+              Notifications (voir aussi Paramètres)
             </button>
             <div className="my-1 border-t border-zinc-800" />
             {!isMuted ? (

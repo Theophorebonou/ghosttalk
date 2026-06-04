@@ -183,7 +183,7 @@ export function MessageBubble({
       </div>
 
       {/* Action buttons */}
-      <div className={`flex shrink-0 flex-col gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 ${isOwn ? 'order-first mr-1' : 'ml-1'}`}>
+      <div className={`flex shrink-0 flex-col gap-0.5 opacity-100 md:opacity-0 transition-opacity group-hover:md:opacity-100 ${isOwn ? 'order-first mr-1' : 'ml-1'}`}>
         <button
           type="button"
           onClick={() => setMenuOpen((v) => !v)}

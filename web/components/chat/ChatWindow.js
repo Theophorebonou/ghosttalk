@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { Fragment, useCallback, useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { getConversationById, markAsRead } from '@/lib/api/conversations'
 import {
@@ -32,11 +32,12 @@ import { decryptChatMessage } from '@/lib/messages/decryptChatMessage'
 import { buildEphemeralSendOptions } from '@/lib/messages/ephemeral'
 import { useAuth } from '@/hooks/useAuth'
 import { useTypingIndicator } from '@/hooks/useTypingIndicator'
-import { notifyNewMessage } from '@/lib/notifications'
 import { Spinner } from '@/components/ui/Spinner'
 import { ChatInput } from './ChatInput'
 import { ManageGroupMembersModal } from './ManageGroupMembersModal'
 import { MessageBubble } from './MessageBubble'
+import { MessageDateSeparator } from './MessageDateSeparator'
+import { isSameCalendarDay } from '@/lib/utils/messageDates'
 import { WellbeingBar } from './WellbeingBar'
 import { GroupIcon } from '@/components/ui/GroupIcon'
 import { ChatHeaderMenu } from './ChatHeaderMenu'
@@ -370,16 +371,6 @@ export function ChatWindow({ conversationId }) {
 
             if (newMsg.sender_id !== user.id) {
               markAsRead(conversationId).catch(console.error)
-              const name = isGroup
-                ? 'Groupe'
-                : otherUser?.username
-                  ? `@${otherUser.username}`
-                  : 'Nouveau message'
-              notifyNewMessage({
-                title: name,
-                body: 'Nouveau message chiffré',
-                conversationId,
-              })
             }
           },
           onUpdate: async (updated) => {
@@ -784,42 +775,48 @@ export function ChatWindow({ conversationId }) {
           </div>
         ) : (
           <div className="flex flex-col">
-            {messages.map((msg) => {
+            {messages.map((msg, index) => {
               const sender = participants.find((p) => p.profiles.id === msg.sender_id)?.profiles
+              const prev = messages[index - 1]
+              const showDateSeparator =
+                !prev || !isSameCalendarDay(prev.created_at, msg.created_at)
+
               return (
-                <MessageBubble
-                  key={msg.id}
-                  message={msg}
-                  sharedKey={sharedKey}
-                  isOwn={msg.sender_id === user?.id}
-                  senderName={isGroup ? sender?.username : null}
-                  isGroup={isGroup}
-                  isDirect={!isGroup}
-                  currentUserId={user?.id}
-                  otherParticipantIds={participantIds}
-                  highlight={highlightId === msg.id}
-                  messageRef={(el) => {
-                    if (el) messageRefs.current[msg.id] = el
-                  }}
-                  onReply={() => setReplyToMessage(msg)}
-                  onEdit={(m) => setEditingMessage(m)}
-                  onForward={(m) => setForwardMessage(m)}
-                  onPin={async (m) => {
-                    await pinMessage(conversationId, m.id)
-                    reloadConversation()
-                  }}
-                  onReact={handleReact}
-                  onScrollToReply={scrollToMessage}
-                  onDeleteForMe={async (m) => {
-                    await hideMessageForMe(m.id)
-                    setMessages((prev) => prev.filter((x) => x.id !== m.id))
-                  }}
-                  onDeleteForAll={async (m) => {
-                    if (!confirm('Supprimer ce message pour tout le monde ?')) return
-                    await deleteMessageForAll(m.id)
-                    setMessages((prev) => prev.filter((x) => x.id !== m.id))
-                  }}
-                />
+                <Fragment key={msg.id}>
+                  {showDateSeparator && <MessageDateSeparator date={msg.created_at} />}
+                  <MessageBubble
+                    message={msg}
+                    sharedKey={sharedKey}
+                    isOwn={msg.sender_id === user?.id}
+                    senderName={isGroup ? sender?.username : null}
+                    isGroup={isGroup}
+                    isDirect={!isGroup}
+                    currentUserId={user?.id}
+                    otherParticipantIds={participantIds}
+                    highlight={highlightId === msg.id}
+                    messageRef={(el) => {
+                      if (el) messageRefs.current[msg.id] = el
+                    }}
+                    onReply={() => setReplyToMessage(msg)}
+                    onEdit={(m) => setEditingMessage(m)}
+                    onForward={(m) => setForwardMessage(m)}
+                    onPin={async (m) => {
+                      await pinMessage(conversationId, m.id)
+                      reloadConversation()
+                    }}
+                    onReact={handleReact}
+                    onScrollToReply={scrollToMessage}
+                    onDeleteForMe={async (m) => {
+                      await hideMessageForMe(m.id)
+                      setMessages((prev) => prev.filter((x) => x.id !== m.id))
+                    }}
+                    onDeleteForAll={async (m) => {
+                      if (!confirm('Supprimer ce message pour tout le monde ?')) return
+                      await deleteMessageForAll(m.id)
+                      setMessages((prev) => prev.filter((x) => x.id !== m.id))
+                    }}
+                  />
+                </Fragment>
               )
             })}
             <div ref={messagesEndRef} />

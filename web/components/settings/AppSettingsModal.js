@@ -1,6 +1,7 @@
 'use client'
 
 import { ThemeSelector } from '@/components/ui/ThemeSelector'
+import { NotificationSettings } from '@/components/settings/NotificationSettings'
 import { Button } from '@/components/ui/Button'
 
 export function AppSettingsModal({ onClose, onOpenKeys }) {
@@ -32,6 +33,14 @@ export function AppSettingsModal({ onClose, onOpenKeys }) {
               Couleurs de l&apos;interface (barre latérale, boutons, fond).
             </p>
             <ThemeSelector variant="settings" />
+          </section>
+
+          <section className="border-t border-border pt-5">
+            <h3 className="mb-1 text-sm font-semibold text-text">Notifications</h3>
+            <p className="mb-3 text-xs text-text-muted">
+              Alertes navigateur pour les nouveaux messages (y compris onglet ouvert sur mobile).
+            </p>
+            <NotificationSettings />
           </section>
 
           <section className="border-t border-border pt-5">
