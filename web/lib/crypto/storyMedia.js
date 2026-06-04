@@ -4,7 +4,7 @@ import { encryptBytes } from './media'
 import { buildImageStoryPayload } from './storyPayload'
 import { buildStoryRecipients } from './storyCrypto'
 
-export async function buildImageStoryCiphertext(buffer, file, contacts, author) {
+export async function buildImageStoryCiphertext(buffer, file, contacts, author, caption = '') {
   const recipients = buildStoryRecipients(contacts, author)
   if (recipients.length === 0) {
     throw new Error('Clés de chiffrement introuvables.')
@@ -25,6 +25,7 @@ export async function buildImageStoryCiphertext(buffer, file, contacts, author) 
         mime,
         inline: true,
         data: bufToBase64(enc),
+        caption,
       })
       map[recipient.id] = await encryptMessage(shared, inner)
     })

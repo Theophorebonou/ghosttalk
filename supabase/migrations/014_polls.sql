@@ -1,6 +1,7 @@
 -- GhostTalk: sondages et quiz interactifs
+-- Idempotent : safe si la table existe déjà (SQL Editor ou push partiel)
 
-create table public.polls (
+create table if not exists public.polls (
   id uuid primary key default gen_random_uuid(),
   message_id uuid not null references public.messages (id) on delete cascade,
   question text not null,
@@ -12,7 +13,7 @@ create table public.polls (
   constraint polls_question_length check (char_length(question) <= 300)
 );
 
-create table public.poll_options (
+create table if not exists public.poll_options (
   id uuid primary key default gen_random_uuid(),
   poll_id uuid not null references public.polls (id) on delete cascade,
   option_text text not null,
@@ -20,7 +21,7 @@ create table public.poll_options (
   constraint poll_options_text_length check (char_length(option_text) <= 100)
 );
 
-create table public.poll_votes (
+create table if not exists public.poll_votes (
   id uuid primary key default gen_random_uuid(),
   poll_option_id uuid not null references public.poll_options (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -28,16 +29,17 @@ create table public.poll_votes (
   unique(poll_option_id, user_id)
 );
 
-create index polls_message_idx on public.polls (message_id);
-create index poll_options_poll_idx on public.poll_options (poll_id);
-create index poll_votes_option_idx on public.poll_votes (poll_option_id);
-create index poll_votes_user_idx on public.poll_votes (user_id);
+create index if not exists polls_message_idx on public.polls (message_id);
+create index if not exists poll_options_poll_idx on public.poll_options (poll_id);
+create index if not exists poll_votes_option_idx on public.poll_votes (poll_option_id);
+create index if not exists poll_votes_user_idx on public.poll_votes (user_id);
 
 -- RLS
 alter table public.polls enable row level security;
 alter table public.poll_options enable row level security;
 alter table public.poll_votes enable row level security;
 
+drop policy if exists "Participants can view polls" on public.polls;
 create policy "Participants can view polls"
   on public.polls
   for select
@@ -50,6 +52,7 @@ create policy "Participants can view polls"
     )
   );
 
+drop policy if exists "Senders can create polls" on public.polls;
 create policy "Senders can create polls"
   on public.polls
   for insert
@@ -62,6 +65,7 @@ create policy "Senders can create polls"
     )
   );
 
+drop policy if exists "Participants can view poll options" on public.poll_options;
 create policy "Participants can view poll options"
   on public.poll_options
   for select
@@ -75,6 +79,7 @@ create policy "Participants can view poll options"
     )
   );
 
+drop policy if exists "Poll creators can add options" on public.poll_options;
 create policy "Poll creators can add options"
   on public.poll_options
   for insert
@@ -88,6 +93,7 @@ create policy "Poll creators can add options"
     )
   );
 
+drop policy if exists "Participants can view votes" on public.poll_votes;
 create policy "Participants can view votes"
   on public.poll_votes
   for select
@@ -102,6 +108,7 @@ create policy "Participants can view votes"
     )
   );
 
+drop policy if exists "Users can vote" on public.poll_votes;
 create policy "Users can vote"
   on public.poll_votes
   for insert
@@ -117,6 +124,7 @@ create policy "Users can vote"
     )
   );
 
+drop policy if exists "Users can delete own votes" on public.poll_votes;
 create policy "Users can delete own votes"
   on public.poll_votes
   for delete

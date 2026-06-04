@@ -68,16 +68,25 @@ export function StoryContent({ payload, authorPublicKey, viewerId }) {
   }
 
   if (payload?.t === 'image') {
-    if (loading) return <p className="text-sm text-zinc-400">Déchiffrement…</p>
-    if (error) return <p className="text-sm text-red-300">{error}</p>
+    if (loading) return <p className="text-sm text-text-muted">Déchiffrement…</p>
+    if (error) return <p className="text-sm text-error">{error}</p>
     if (blobUrl) {
+      const caption =
+        typeof payload.caption === 'string' ? payload.caption.trim() : ''
       return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={blobUrl}
-          alt=""
-          className="max-h-[70vh] max-w-full rounded-lg object-contain shadow-2xl"
-        />
+        <div className="flex max-w-lg flex-col items-center gap-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={blobUrl}
+            alt=""
+            className="max-h-[70vh] max-w-full rounded-lg object-contain shadow-2xl"
+          />
+          {caption ? (
+            <p className="max-w-lg whitespace-pre-wrap text-center text-lg leading-relaxed text-text">
+              {caption}
+            </p>
+          ) : null}
+        </div>
       )
     }
   }

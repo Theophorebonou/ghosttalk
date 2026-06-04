@@ -37,14 +37,41 @@ Dans **SQL Editor**, exécute **dans l’ordre** chaque fichier de `supabase/mig
 | `011_message_reads_ephemeral.sql` | Accusés de lecture + messages sans trace |
 | `012_stories.sql` | Statuts 24h + bucket `story-media` |
 | `013_telegram_parity.sql` | Édition, réactions, épinglage, archive, mute, blocage, présence |
+| `019_calls.sql` | Appels audio/vidéo WebRTC + signaux |
+| `020_calls_fix.sql` | Grants RPC appels + Realtime (si 019 déjà appliqué à la main) |
 
 Ou en CLI (depuis la racine du repo) :
 
 ```bash
-cd supabase
+supabase login
 supabase link --project-ref VOTRE_PROJECT_REF
 supabase db push
 ```
+
+### Base déjà créée (erreur « relation already exists »)
+
+Si tu as déjà exécuté les SQL à la main et `db push` plante parce que les tables existent :
+
+**Option A — SQL Editor (simple)**  
+1. Ouvre `supabase/scripts/mark-existing-migrations.sql` dans **SQL Editor** → Run.  
+2. En local : `supabase db push` (ne devrait appliquer que `019_calls` + `020_calls_fix`).
+
+**Option B — CLI** (versions **`001`**, pas `001_profiles`)  
+```bash
+chmod +x scripts/sync-db-migrations.sh
+./scripts/sync-db-migrations.sh
+```
+
+Si `supabase migration list` montre déjà `001`–`014` côté Remote, marque seulement le reste puis pousse les appels :
+
+```bash
+supabase migration repair 015 016 017 018 --status applied
+supabase db push
+```
+
+Pour voir l’état : `supabase migration list` ou `supabase/scripts/diagnose_remote.sql` dans le SQL Editor.
+
+Si `calls` existe déjà, ajoute `019` dans `mark-existing-migrations.sql` ou `supabase migration repair 019 --status applied`, puis `db push` pour `020` seulement.
 
 ### Vérifier le bucket Storage
 
@@ -149,7 +176,7 @@ Si l’upload échoue : vérifie que `009_storage_media.sql` est appliqué et qu
 
 ## 6. Checklist avant mise en ligne
 
-- [ ] Toutes les migrations `001` → `013` exécutées
+- [ ] Toutes les migrations `001` → `019` exécutées (appels : `019_calls.sql`)
 - [ ] Bucket `conversation-media` présent
 - [ ] Auth : Anonymous + Email (et Phone si besoin)
 - [ ] Redirect URLs production configurées

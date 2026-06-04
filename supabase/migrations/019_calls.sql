@@ -137,3 +137,22 @@ begin
     and (caller_id = auth.uid() or callee_id = auth.uid());
 end;
 $$;
+
+grant execute on function public.create_call(uuid, text, uuid) to authenticated;
+grant execute on function public.update_call_status(uuid, text) to authenticated;
+
+-- Realtime : appels entrants
+alter table public.calls replica identity full;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'calls'
+  ) then
+    alter publication supabase_realtime add table public.calls;
+  end if;
+end;
+$$;

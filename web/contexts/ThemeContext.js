@@ -9,10 +9,10 @@ export function ThemeProvider({ children }) {
   const [themeId, setThemeId] = useState(DEFAULT_THEME)
 
   useEffect(() => {
-    // Load theme from localStorage
     const saved = localStorage.getItem('ghosttalk_theme')
     if (saved && THEMES[saved]) {
       setThemeId(saved)
+      applyTheme(saved)
     } else {
       applyTheme(DEFAULT_THEME)
     }

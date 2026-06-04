@@ -118,4 +118,6 @@ export function applyTheme(themeId) {
   Object.entries(theme.colors).forEach(([key, value]) => {
     root.style.setProperty(`--color-${key}`, value)
   })
+
+  root.dataset.theme = themeId
 }

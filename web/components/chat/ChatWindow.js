@@ -168,18 +168,47 @@ export function ChatWindow({ conversationId }) {
   }
 
   async function handleStartCall(callType = 'audio') {
-    if (!otherUser?.id) return
+    if (isGroup) {
+      alert('Les appels sont disponibles en conversation directe uniquement.')
+      return
+    }
+    if (!otherUser?.id) {
+      alert('Impossible d\'appeler : contact introuvable.')
+      return
+    }
+
+    setIncomingCall(null)
+    setShowCallModal(true)
+
     try {
       const call = await initiateCall(otherUser.id, callType, conversationId)
       setActiveCall(call)
-      setShowCallModal(true)
+
+      await callManager.startCall(
+        otherUser.id,
+        callType,
+        conversationId,
+        call.id
+      )
+      setActiveCall({ ...call, status: 'ringing' })
     } catch (err) {
       console.error('Failed to start call:', err)
-      alert('Échec de l\'appel')
+      setShowCallModal(false)
+      setActiveCall(null)
+      alert(
+        err.message?.includes('Permission') || err.name === 'NotAllowedError'
+          ? 'Autorisez le micro (et la caméra pour la vidéo) dans le navigateur.'
+          : `Échec de l'appel : ${err.message ?? 'erreur inconnue'}`
+      )
     }
   }
 
-  function handleEndCall() {
+  async function handleEndCall() {
+    try {
+      await callManager.endCall()
+    } catch (err) {
+      console.error(err)
+    }
     setActiveCall(null)
     setShowCallModal(false)
     setIncomingCall(null)
@@ -689,8 +718,10 @@ export function ChatWindow({ conversationId }) {
           onClose={handleEndCall}
           onCallEnded={handleEndCall}
           callId={activeCall?.id || incomingCall?.id}
-          isIncoming={!!incomingCall}
+          isIncoming={!!incomingCall && !activeCall}
           callType={activeCall?.call_type || incomingCall?.call_type || 'audio'}
+          callManager={callManager}
+          remoteDisplayName={otherUser?.username}
         />
       )}
 

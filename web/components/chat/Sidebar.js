@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { CreateGroupModal } from './CreateGroupModal'
 import { KeySettingsModal } from '@/components/auth/KeySettingsModal'
-import { ThemeSelector } from '@/components/ui/ThemeSelector'
+import { AppSettingsModal } from '@/components/settings/AppSettingsModal'
 import { StoriesBar } from '@/components/stories/StoriesBar'
 import { GroupIcon } from '@/components/ui/GroupIcon'
 
@@ -31,6 +31,7 @@ export function Sidebar() {
 
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [showKeySettings, setShowKeySettings] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [showFolderManager, setShowFolderManager] = useState(false)
 
   const [searchResults, setSearchResults] = useState([])
@@ -305,9 +306,9 @@ export function Sidebar() {
     : 'flex w-full md:w-80'
 
   return (
-    <aside className={`relative z-10 h-full shrink-0 flex-col border-r border-violet-500/10 bg-[#2a2838]/85 backdrop-blur-xl ${sidebarClasses}`}>
+    <aside className={`relative z-10 h-full shrink-0 flex-col border-r border-border bg-surface/90 backdrop-blur-xl ${sidebarClasses}`}>
       <div className="p-4">
-        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-text-muted">
           Rechercher
         </h2>
         <form onSubmit={handleSearch} className="flex gap-2 relative">
@@ -427,8 +428,8 @@ export function Sidebar() {
                       href={`/chat/${conv.id}`}
                       className={`block relative rounded-xl px-3 py-2.5 text-sm transition-colors ${
                         isActive
-                          ? 'bg-zinc-800 text-white'
-                          : isConvUnread(conv) ? 'text-zinc-200 bg-violet-500/10 border border-violet-500/30' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
+                          ? 'bg-surface-highlight text-text'
+                          : isConvUnread(conv) ? 'text-text bg-primary/10 border border-primary/30' : 'text-text-muted hover:bg-surface-highlight hover:text-text'
                       }`}
                     >
                       {isConvUnread(conv) && !isActive && (
@@ -487,8 +488,8 @@ export function Sidebar() {
                       href={`/chat/${conv.id}`}
                       className={`block relative rounded-xl px-3 py-2.5 text-sm transition-colors ${
                         isActive
-                          ? 'bg-zinc-800 text-white'
-                          : isConvUnread(conv) ? 'text-zinc-200 bg-violet-500/10 border border-violet-500/30' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
+                          ? 'bg-surface-highlight text-text'
+                          : isConvUnread(conv) ? 'text-text bg-primary/10 border border-primary/30' : 'text-text-muted hover:bg-surface-highlight hover:text-text'
                       }`}
                     >
                       {isConvUnread(conv) && !isActive && (
@@ -499,9 +500,9 @@ export function Sidebar() {
                            </span>
                         </div>
                       )}
-                      <div className={`pl-2 pr-6 truncate flex items-center gap-1 ${isConvUnread(conv) ? 'font-bold text-violet-200' : 'font-medium'}`}>
+                      <div className={`pl-2 pr-6 truncate flex items-center gap-1 ${isConvUnread(conv) ? 'font-bold text-primary' : 'font-medium'}`}>
                         @{other.username}
-                        {isMuted(conv) && <span className="text-zinc-500 text-xs">🔕</span>}
+                        {isMuted(conv) && <span className="text-text-muted text-xs">🔕</span>}
                       </div>
                     </Link>
                   </li>
@@ -546,25 +547,25 @@ export function Sidebar() {
           </div>
         )}
       </div>
-      <div className="border-t border-zinc-900 p-4">
-        <ThemeSelector />
+      <div className="border-t border-border p-4">
         <button
           type="button"
-          onClick={() => setShowKeySettings(true)}
-          className="mt-3 w-full rounded-lg px-2 py-2 text-left text-xs text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-300"
+          onClick={() => setShowSettings(true)}
+          className="mb-3 flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left text-sm text-text-muted transition hover:bg-surface-highlight hover:text-text"
         >
-          Sauvegarder mes clés
+          <span aria-hidden>⚙️</span>
+          Paramètres
         </button>
         {profile ? (
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-800 font-bold text-violet-400">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-highlight font-bold text-primary">
               {profile.username.charAt(0).toUpperCase()}
             </div>
             <div className="flex flex-col truncate">
-              <span className="truncate text-sm font-semibold text-zinc-100">
+              <span className="truncate text-sm font-semibold text-text">
                 @{profile.username}
               </span>
-              <span className="truncate text-xs text-zinc-500">
+              <span className="truncate text-xs text-text-muted">
                 {user?.is_anonymous ? 'Mode Fantôme' : 'Compte connecté'}
               </span>
             </div>
@@ -581,6 +582,12 @@ export function Sidebar() {
       </div>
 
       {showCreateGroup && <CreateGroupModal onClose={() => setShowCreateGroup(false)} />}
+      {showSettings && (
+        <AppSettingsModal
+          onClose={() => setShowSettings(false)}
+          onOpenKeys={() => setShowKeySettings(true)}
+        />
+      )}
       {showKeySettings && <KeySettingsModal onClose={() => setShowKeySettings(false)} />}
       {showFolderManager && (
         <FolderManager

@@ -8,9 +8,9 @@ export function Button({
 }) {
   const variants = {
     primary:
-      'bg-violet-600 text-white hover:bg-violet-500 disabled:bg-violet-900 disabled:text-violet-400',
+      'bg-primary text-white hover:opacity-90 disabled:opacity-40',
     ghost:
-      'bg-transparent text-zinc-300 hover:bg-zinc-800 border border-zinc-700',
+      'bg-transparent text-text border border-border hover:bg-surface-highlight',
   }
 
   return (

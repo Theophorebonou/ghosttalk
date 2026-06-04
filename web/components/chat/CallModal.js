@@ -1,67 +1,101 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Button } from '@/components/ui/Button'
-import { Spinner } from '@/components/ui/Spinner'
-import { CallManager, isWebRTCSupported } from '@/lib/webrtc/callManager'
 import { getCall, updateCallStatus } from '@/lib/api/calls'
+import { CallManager } from '@/lib/webrtc/callManager'
 
-export function CallModal({ isOpen, onClose, onCallEnded, callId, isIncoming = false, callType = 'audio' }) {
-  const [callManager] = useState(() => new CallManager())
+export function CallModal({
+  isOpen,
+  onClose,
+  onCallEnded,
+  callId,
+  isIncoming = false,
+  callType = 'audio',
+  callManager: externalCallManager,
+  remoteDisplayName = null,
+}) {
+  const callManager = externalCallManager
   const [localStream, setLocalStream] = useState(null)
   const [remoteStream, setRemoteStream] = useState(null)
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOff, setIsVideoOff] = useState(false)
-  const [callStatus, setCallStatus] = useState('ringing')
+  const [callStatus, setCallStatus] = useState(isIncoming ? 'ringing' : 'calling')
   const [callDuration, setCallDuration] = useState(0)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [showStats, setShowStats] = useState(false)
-  const [connectionQuality, setConnectionQuality] = useState('good')
   const [remoteUser, setRemoteUser] = useState(null)
+  const [errorMessage, setErrorMessage] = useState(null)
 
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
-  const containerRef = useRef(null)
+  const endedRef = useRef(false)
 
   useEffect(() => {
-    if (!isOpen || !callId) return
+    if (!isOpen) return
 
-    // Récupérer les infos de l'appel
-    getCall(callId).then(call => {
-      setRemoteUser(call.caller || call.callee)
-    }).catch(console.error)
+    endedRef.current = false
+    setCallStatus(isIncoming ? 'ringing' : 'calling')
+    setErrorMessage(null)
+
+    if (callManager?.localStream) {
+      setLocalStream(callManager.localStream)
+    }
+
+    if (remoteDisplayName) {
+      setRemoteUser({ username: remoteDisplayName })
+    }
+
+    if (callId && !String(callId).startsWith('demo-')) {
+      getCall(callId)
+        .then((call) => {
+          if (call) {
+            setRemoteUser(call.callee || call.caller)
+          }
+        })
+        .catch(console.error)
+    }
+
+    if (!callManager) return
 
     callManager.onRemoteStream = (stream) => {
       setRemoteStream(stream)
       setCallStatus('connected')
     }
 
-    callManager.onCallEnded = (reason) => {
-      onCallEnded?.(reason)
-      onClose()
+    callManager.onCallEnded = () => {
+      if (!endedRef.current) {
+        endedRef.current = true
+        onCallEnded?.()
+        onClose()
+      }
     }
 
     callManager.onCallError = (err) => {
       console.error('Call error:', err)
+      setErrorMessage(err.message ?? 'Erreur de connexion')
       setCallStatus('error')
     }
 
     callManager.onCallStatusChanged = (status) => {
-      setCallStatus(status)
+      if (status === 'ringing') setCallStatus(isIncoming ? 'ringing' : 'calling')
+      else if (status === 'connected') setCallStatus('connected')
     }
 
-    // Démarrer ou répondre à l'appel
-    if (isIncoming) {
-      answerCall()
-    } else {
-      // L'appel est déjà initié, attendre la connexion
-      setCallStatus('ringing')
+    if (isIncoming && callId) {
+      callManager
+        .answerCall(callId, callType)
+        .then(() => setLocalStream(callManager.localStream))
+        .catch((err) => {
+          setErrorMessage(err.message)
+          setCallStatus('error')
+        })
     }
 
     return () => {
-      callManager.endCall()
+      callManager.onRemoteStream = null
+      callManager.onCallEnded = null
+      callManager.onCallError = null
+      callManager.onCallStatusChanged = null
     }
-  }, [isOpen, callId, isIncoming])
+  }, [isOpen, callId, isIncoming, callType, callManager, remoteDisplayName, onCallEnded, onClose])
 
   useEffect(() => {
     if (localStream && localVideoRef.current) {
@@ -76,271 +110,208 @@ export function CallModal({ isOpen, onClose, onCallEnded, callId, isIncoming = f
   }, [remoteStream])
 
   useEffect(() => {
-    let interval
-    if (callStatus === 'connected') {
-      interval = setInterval(() => {
-        setCallDuration((prev) => prev + 1)
-      }, 1000)
-    }
+    if (callStatus !== 'connected') return
+    const interval = setInterval(() => setCallDuration((p) => p + 1), 1000)
     return () => clearInterval(interval)
   }, [callStatus])
 
-  // Gestion du plein écran
-  useEffect(() => {
-    if (!containerRef.current) return
-
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
-  }, [])
-
-  async function answerCall() {
-    try {
-      setCallStatus('connecting')
-      await callManager.answerCall(callId, callType)
-      setLocalStream(callManager.localStream)
-    } catch (err) {
-      console.error('Failed to answer call:', err)
-      setCallStatus('error')
-    }
-  }
-
   async function handleEndCall() {
-    await callManager.endCall()
-    await updateCallStatus(callId, 'ended')
-    if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop())
-    }
+    endedRef.current = true
+    if (callManager) await callManager.endCall()
+    if (callId) await updateCallStatus(callId, 'ended')
+    localStream?.getTracks().forEach((t) => t.stop())
+    onCallEnded?.()
     onClose()
   }
 
   async function handleRejectCall() {
-    await callManager.endCall('rejected')
-    await updateCallStatus(callId, 'rejected')
-    if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop())
-    }
+    endedRef.current = true
+    if (callManager) await callManager.endCall('rejected')
+    if (callId) await updateCallStatus(callId, 'rejected')
     onClose()
   }
 
+  async function handleAnswer() {
+    if (!callManager || !callId) return
+    setCallStatus('connecting')
+    try {
+      await callManager.answerCall(callId, callType)
+      setLocalStream(callManager.localStream)
+    } catch (err) {
+      setErrorMessage(err.message)
+      setCallStatus('error')
+    }
+  }
+
   function toggleMute() {
-    const newState = !isMuted
-    setIsMuted(newState)
-    callManager.toggleAudio(!newState)
+    const next = !isMuted
+    setIsMuted(next)
+    callManager?.toggleAudio(!next)
   }
 
   function toggleVideo() {
-    const newState = !isVideoOff
-    setIsVideoOff(newState)
-    callManager.toggleVideo(!newState)
-  }
-
-  function toggleFullscreen() {
-    if (!containerRef.current) return
-
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen()
-    } else {
-      document.exitFullscreen()
-    }
-  }
-
-  function toggleStats() {
-    setShowStats(!showStats)
+    const next = !isVideoOff
+    setIsVideoOff(next)
+    callManager?.toggleVideo(!next)
   }
 
   function formatDuration(seconds) {
-    const hours = Math.floor(seconds / 3600)
-    const mins = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
-
-    if (hours > 0) {
-      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
   }
 
-  function getConnectionQualityIcon() {
-    switch (connectionQuality) {
-      case 'excellent':
-        return '🟢'
-      case 'good':
-        return '🟡'
-      case 'poor':
-        return '🟠'
-      case 'bad':
-        return '🔴'
-      default:
-        return '⚪'
-    }
-  }
+  const displayName =
+    remoteUser?.display_name || remoteUser?.username || remoteDisplayName || 'Contact'
 
   if (!isOpen) return null
 
+  const isOutgoingRinging = !isIncoming && (callStatus === 'calling' || callStatus === 'ringing')
+  const isConnecting = callStatus === 'connecting'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95">
-      <div 
-        ref={containerRef}
-        className="flex h-full w-full flex-col items-center justify-center p-4"
-      >
-        {/* Vidéo distante */}
-        <div className="relative mb-4 aspect-video w-full max-w-7xl overflow-hidden rounded-2xl bg-zinc-900">
-          {callStatus === 'ringing' && isIncoming && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-zinc-800">
-              <div className="mb-4 text-6xl animate-pulse">📞</div>
-              <p className="mb-2 text-2xl font-semibold text-white">
-                {remoteUser?.display_name || remoteUser?.username}
-              </p>
-              <p className="text-zinc-400">Appel {callType === 'video' ? 'vidéo' : 'audio'} entrant...</p>
-              <div className="mt-8 flex gap-4">
-                <button
-                  onClick={handleRejectCall}
-                  className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white transition hover:bg-red-700"
-                >
-                  ✕
-                </button>
-                <button
-                  onClick={answerCall}
-                  className="flex h-16 w-16 items-center justify-center rounded-full bg-green-600 text-white transition hover:bg-green-700"
-                >
-                  ✓
-                </button>
+    <div className="fixed inset-0 z-[100] flex flex-col bg-gradient-to-b from-[#1a1828] via-[#12101c] to-black">
+      {/* En-tête */}
+      <div className="flex items-center justify-between px-6 py-4">
+        <div>
+          <p className="text-lg font-semibold text-white">@{displayName}</p>
+          <p className="text-sm text-zinc-400">
+            {callStatus === 'connected'
+              ? formatDuration(callDuration)
+              : callStatus === 'error'
+                ? errorMessage
+                : isOutgoingRinging
+                  ? `Appel ${callType === 'video' ? 'vidéo' : 'audio'} en cours…`
+                  : isIncoming
+                    ? 'Appel entrant'
+                    : 'Connexion…'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleEndCall}
+          className="rounded-full px-3 py-1 text-sm text-zinc-400 hover:bg-white/10 hover:text-white"
+        >
+          Fermer
+        </button>
+      </div>
+
+      {/* Zone principale */}
+      <div className="relative flex flex-1 flex-col items-center justify-center px-6">
+        {callStatus === 'error' && (
+          <div className="text-center">
+            <p className="mb-4 text-5xl">⚠️</p>
+            <p className="text-red-400">{errorMessage || 'Appel impossible'}</p>
+            <p className="mt-2 text-xs text-zinc-500">
+              Vérifiez le micro / la caméra et la migration 019_calls.sql
+            </p>
+          </div>
+        )}
+
+        {(isOutgoingRinging || isConnecting) && (
+          <div className="flex flex-col items-center text-center">
+            <div className="relative mb-8 flex h-28 w-28 items-center justify-center rounded-full bg-violet-600/20">
+              <span className="absolute inset-0 animate-ping rounded-full bg-violet-500/30" />
+              <span className="text-5xl">{callType === 'video' ? '📹' : '📞'}</span>
+            </div>
+            <p className="text-xl font-medium text-white">@{displayName}</p>
+            <p className="mt-2 text-zinc-400">
+              {isConnecting ? 'Connexion…' : 'Sonnerie…'}
+            </p>
+            <div className="mt-8 flex items-center gap-2">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-violet-400 [animation-delay:0ms]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-violet-400 [animation-delay:300ms]" />
+            </div>
+          </div>
+        )}
+
+        {isIncoming && callStatus === 'ringing' && (
+          <div className="flex flex-col items-center">
+            <div className="mb-8 flex h-28 w-28 items-center justify-center rounded-full bg-green-600/20 text-5xl">
+              📞
+            </div>
+            <p className="mb-8 text-xl text-white">@{displayName}</p>
+            <div className="flex gap-6">
+              <button
+                type="button"
+                onClick={handleRejectCall}
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-2xl text-white hover:bg-red-700"
+              >
+                ✕
+              </button>
+              <button
+                type="button"
+                onClick={handleAnswer}
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-green-600 text-2xl text-white hover:bg-green-700"
+              >
+                ✓
+              </button>
+            </div>
+          </div>
+        )}
+
+        {callStatus === 'connected' && (
+          <div className="relative h-full w-full max-w-4xl">
+            {remoteStream && callType === 'video' ? (
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="h-[50vh] w-full rounded-2xl bg-zinc-900 object-cover"
+              />
+            ) : (
+              <div className="flex h-[40vh] items-center justify-center rounded-2xl bg-zinc-900/80">
+                <p className="text-6xl">🎧</p>
               </div>
-            </div>
-          )}
-
-          {callStatus === 'connecting' && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <Spinner className="mx-auto mb-4 h-12 w-12 text-violet-400" />
-                <p className="text-zinc-300">Connexion en cours...</p>
-              </div>
-            </div>
-          )}
-
-          {callStatus === 'error' && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="mb-4 text-6xl">❌</div>
-                <p className="text-red-400">Erreur de connexion</p>
-              </div>
-            </div>
-          )}
-
-          {remoteStream && callStatus === 'connected' && (
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="h-full w-full object-cover"
-            />
-          )}
-
-          {callStatus === 'connected' && !remoteStream && (
-            <div className="flex h-full w-full items-center justify-center">
-              <p className="text-zinc-500">En attente de connexion vidéo...</p>
-            </div>
-          )}
-          
-          {/* Vidéo locale (picture-in-picture) */}
-          {localStream && !isVideoOff && callStatus === 'connected' && (
-            <div className="absolute bottom-4 right-4 h-40 w-56 overflow-hidden rounded-xl border-2 border-zinc-700 bg-zinc-900 shadow-2xl">
+            )}
+            {localStream && callType === 'video' && !isVideoOff && (
               <video
                 ref={localVideoRef}
                 autoPlay
                 playsInline
                 muted
-                className="h-full w-full object-cover"
+                className="absolute bottom-4 right-4 h-32 w-44 rounded-xl border-2 border-zinc-700 object-cover shadow-xl"
               />
-            </div>
-          )}
+            )}
+          </div>
+        )}
+      </div>
 
-          {/* Overlay d'informations */}
-          {callStatus === 'connected' && (
-            <>
-              {/* Durée et qualité */}
-              <div className="absolute top-4 left-4 flex items-center gap-3">
-                <div className="rounded-full bg-black/60 px-4 py-2 text-sm text-white backdrop-blur-sm">
-                  {formatDuration(callDuration)}
-                </div>
-                <button
-                  onClick={toggleStats}
-                  className="rounded-full bg-black/60 px-3 py-2 text-sm text-white backdrop-blur-sm hover:bg-black/80"
-                  title="Statistiques"
-                >
-                  {getConnectionQualityIcon()}
-                </button>
-              </div>
-
-              {/* Nom du contact */}
-              <div className="absolute top-4 right-4">
-                <div className="rounded-full bg-black/60 px-4 py-2 text-sm text-white backdrop-blur-sm">
-                  {remoteUser?.display_name || remoteUser?.username}
-                </div>
-              </div>
-
-              {/* Statistiques de connexion */}
-              {showStats && (
-                <div className="absolute top-16 left-4 rounded-lg bg-black/80 p-4 text-xs text-white backdrop-blur-sm">
-                  <p>Qualité: {connectionQuality}</p>
-                  <p>Type: {callType}</p>
-                  <p>État: {callStatus}</p>
-                </div>
-              )}
-
-              {/* Bouton plein écran */}
-              <button
-                onClick={toggleFullscreen}
-                className="absolute bottom-4 left-4 rounded-full bg-black/60 p-3 text-white backdrop-blur-sm hover:bg-black/80"
-                title="Plein écran"
-              >
-                {isFullscreen ? '⛶' : '⛶'}
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Contrôles de l'appel */}
-        {callStatus === 'connected' && (
-          <div className="flex items-center gap-4">
+      {/* Contrôles bas */}
+      <div className="flex items-center justify-center gap-6 px-6 py-8">
+        {(isOutgoingRinging || callStatus === 'connected') && (
+          <>
             <button
+              type="button"
               onClick={toggleMute}
-              className={`flex h-14 w-14 items-center justify-center rounded-full transition ${
-                isMuted
-                  ? 'bg-red-600 text-white'
-                  : 'bg-zinc-700 text-white hover:bg-zinc-600'
-              }`}
-              title={isMuted ? 'Activer le micro' : 'Couper le micro'}
+              className={`flex h-14 w-14 items-center justify-center rounded-full ${
+                isMuted ? 'bg-red-600' : 'bg-zinc-700'
+              } text-xl text-white`}
             >
               {isMuted ? '🔇' : '🎤'}
             </button>
-
             {callType === 'video' && (
               <button
+                type="button"
                 onClick={toggleVideo}
-                className={`flex h-14 w-14 items-center justify-center rounded-full transition ${
-                  isVideoOff
-                    ? 'bg-red-600 text-white'
-                    : 'bg-zinc-700 text-white hover:bg-zinc-600'
-                }`}
-                title={isVideoOff ? 'Activer la caméra' : 'Couper la caméra'}
+                className={`flex h-14 w-14 items-center justify-center rounded-full ${
+                  isVideoOff ? 'bg-red-600' : 'bg-zinc-700'
+                } text-xl text-white`}
               >
                 {isVideoOff ? '📷' : '📹'}
               </button>
             )}
-
-            <button
-              onClick={handleEndCall}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white transition hover:bg-red-700"
-              title="Raccrocher"
-            >
-              📞
-            </button>
-          </div>
+          </>
         )}
+        <button
+          type="button"
+          onClick={handleEndCall}
+          className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-2xl text-white hover:bg-red-700"
+          title="Raccrocher"
+        >
+          📵
+        </button>
       </div>
     </div>
   )

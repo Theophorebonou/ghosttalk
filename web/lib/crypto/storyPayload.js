@@ -2,8 +2,10 @@ export function buildTextStoryPayload(text) {
   return JSON.stringify({ t: 'text', b: text })
 }
 
-export function buildImageStoryPayload({ name, mime, path, inline, data }) {
+export function buildImageStoryPayload({ name, mime, path, inline, data, caption }) {
   const base = { t: 'image', name, mime: mime || 'image/jpeg' }
+  const text = typeof caption === 'string' ? caption.trim() : ''
+  if (text) base.caption = text
   if (inline && data) {
     return JSON.stringify({ ...base, inline: true, data })
   }
