@@ -9,9 +9,12 @@ export async function getConversations() {
       name,
       created_at,
       last_message_at,
+      pinned_message_id,
       conversation_participants!inner(
         joined_at,
         last_read_at,
+        muted_until,
+        archived_at,
         role,
         profiles(
           id,
@@ -93,9 +96,12 @@ export async function getConversationById(id) {
       name,
       created_at,
       last_message_at,
+      pinned_message_id,
       conversation_participants!inner(
         joined_at,
         last_read_at,
+        muted_until,
+        archived_at,
         role,
         profiles(
           id,

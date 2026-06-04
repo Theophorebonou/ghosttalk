@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { getConversations, getOrCreateDirectConversation, getConversationById } from '@/lib/api/conversations'
 import { getProfileByUsername, searchProfiles } from '@/lib/api/profiles'
+import { isUserBlocked } from '@/lib/api/conversationSettings'
+import { getFolders, deleteFolder } from '@/lib/api/folders'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { Input } from '@/components/ui/Input'
@@ -12,6 +14,9 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { CreateGroupModal } from './CreateGroupModal'
 import { KeySettingsModal } from '@/components/auth/KeySettingsModal'
+import { ThemeSelector } from '@/components/ui/ThemeSelector'
+import { StoriesBar } from '@/components/stories/StoriesBar'
+import { GroupIcon } from '@/components/ui/GroupIcon'
 
 export function Sidebar() {
   const params = useParams()
@@ -26,8 +31,10 @@ export function Sidebar() {
 
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [showKeySettings, setShowKeySettings] = useState(false)
+  const [showFolderManager, setShowFolderManager] = useState(false)
 
   const [searchResults, setSearchResults] = useState([])
+  const [folders, setFolders] = useState([])
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -58,6 +65,18 @@ export function Sidebar() {
       }
     }
     loadConversations()
+
+    // Charger les dossiers
+    async function loadFolders() {
+      if (!user) return
+      try {
+        const data = await getFolders()
+        setFolders(data)
+      } catch (err) {
+        console.error('Failed to load folders', err)
+      }
+    }
+    loadFolders()
   }, [user])
 
   const activeId = params?.id
@@ -133,8 +152,53 @@ export function Sidebar() {
       )
       .subscribe()
     
+    // Subscribe to participant property updates (Mute, Archive)
+    const partChannel = supabase.channel('participants-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setConversations(prev => prev.map(c => {
+            if (c.id === payload.new.conversation_id) {
+              const myIdx = c.conversation_participants?.findIndex(p => p.profiles?.id === user.id)
+              if (myIdx > -1) {
+                const newC = { ...c }
+                newC.conversation_participants = [...newC.conversation_participants]
+                newC.conversation_participants[myIdx] = {
+                  ...newC.conversation_participants[myIdx],
+                  muted_until: payload.new.muted_until,
+                  archived_at: payload.new.archived_at,
+                  last_read_at: payload.new.last_read_at,
+                }
+                return newC
+              }
+            }
+            return c
+          }))
+        }
+      )
+      .subscribe()
+      
+    // Subscribe to conversation updates (e.g. pinned_message nullified during clear history)
+    const convChannel = supabase.channel('conversations-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'conversations' },
+        async (payload) => {
+          try {
+            const fetched = await getConversationById(payload.new.id)
+            setConversations(prev => prev.map(c => c.id === fetched.id ? fetched : c))
+          } catch (err) {
+            console.error('Failed to reload conversation for sidebar', err)
+          }
+        }
+      )
+      .subscribe()
+
     return () => {
       channel.unsubscribe()
+      partChannel.unsubscribe()
+      convChannel.unsubscribe()
     }
   }, [user, activeId])
 
@@ -179,6 +243,14 @@ export function Sidebar() {
         return
       }
 
+      // Vérifier si l'utilisateur est bloqué
+      const blocked = await isUserBlocked(profile.id)
+      if (blocked) {
+        setSearchError(`Vous avez bloqué @${profile.username}. Débloquez cet utilisateur pour discuter.`)
+        setSearchLoading(false)
+        return
+      }
+
       // Initiate or fetch conversation
       const convId = await getOrCreateDirectConversation(profile.id)
       setSearch('')
@@ -193,10 +265,40 @@ export function Sidebar() {
     }
   }
 
+  async function handleDeleteFolder(folderId) {
+    if (!confirm('Supprimer ce dossier ?')) return
+    try {
+      await deleteFolder(folderId)
+      setFolders((prev) => prev.filter((f) => f.id !== folderId))
+    } catch (err) {
+      console.error(err)
+      alert('Erreur lors de la suppression du dossier')
+    }
+  }
 
-  // Separate direct and group conversations
-  const directConversations = conversations.filter(c => c.type === 'direct')
-  const groupConversations = conversations.filter(c => c.type === 'group')
+  function handleFolderCreated() {
+    getFolders().then(setFolders).catch(console.error)
+  }
+
+
+  function myParticipant(conv) {
+    return conv.conversation_participants?.find((p) => p.profiles?.id === user?.id)
+  }
+
+  function isArchived(conv) {
+    return !!myParticipant(conv)?.archived_at
+  }
+
+  function isMuted(conv) {
+    const p = myParticipant(conv)
+    if (!p?.muted_until) return false
+    return new Date(p.muted_until).getTime() > Date.now()
+  }
+
+  const activeConversations = conversations.filter((c) => !isArchived(c))
+  const archivedConversations = conversations.filter((c) => isArchived(c))
+  const directConversations = activeConversations.filter((c) => c.type === 'direct')
+  const groupConversations = activeConversations.filter((c) => c.type === 'group')
 
   const sidebarClasses = activeId 
     ? 'hidden md:flex md:w-80' 
@@ -232,6 +334,13 @@ export function Sidebar() {
                       setSearchResults([])
                       setSearchLoading(true)
                       try {
+                        // Vérifier si l'utilisateur est bloqué
+                        const blocked = await isUserBlocked(res.id)
+                        if (blocked) {
+                          setSearchError(`Vous avez bloqué @${res.username}. Débloquez cet utilisateur pour discuter.`)
+                          return
+                        }
+                        
                         const convId = await getOrCreateDirectConversation(res.id)
                         router.push(`/chat/${convId}`)
                       } catch (err) {
@@ -258,7 +367,36 @@ export function Sidebar() {
         {searchError && <p className="mt-2 text-xs text-red-500">{searchError}</p>}
       </div>
 
+      <StoriesBar />
+
       <div className="flex-1 overflow-y-auto p-2">
+        {folders.length > 0 && (
+          <div className="mb-4">
+            <div className="mb-2 flex items-center justify-between px-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Dossiers
+              </h2>
+              <button
+                onClick={() => setShowFolderManager(true)}
+                className="text-xs text-violet-400 hover:text-violet-300"
+              >
+                + Nouveau
+              </button>
+            </div>
+            <div className="space-y-1">
+              {folders.map((folder) => (
+                <button
+                  key={folder.id}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800"
+                >
+                  <span className="text-lg">{folder.icon}</span>
+                  <span className="flex-1 truncate">{folder.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="mb-4">
           <div className="mb-2 flex items-center justify-between px-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
@@ -302,10 +440,13 @@ export function Sidebar() {
                         </div>
                       )}
                       <div className="flex items-center gap-2 pl-2 pr-6">
-                        <span className="text-lg">👥</span>
-                        <div className="flex-1">
-                          <div className={`truncate ${isConvUnread(conv) ? 'font-bold text-violet-200' : 'font-medium'}`}>
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-800/80 text-violet-400/90">
+                          <GroupIcon className="h-4 w-4" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className={`truncate flex items-center gap-1 ${isConvUnread(conv) ? 'font-bold text-violet-200' : 'font-medium'}`}>
                             {conv.name?.trim() || 'Groupe sans nom'}
+                            {isMuted(conv) && <span className="text-zinc-500 text-xs">🔕</span>}
                           </div>
                           <div className="text-xs text-zinc-500">{participantCount} membres</div>
                         </div>
@@ -358,7 +499,10 @@ export function Sidebar() {
                            </span>
                         </div>
                       )}
-                      <div className={`pl-2 pr-6 truncate ${isConvUnread(conv) ? 'font-bold text-violet-200' : 'font-medium'}`}>@{other.username}</div>
+                      <div className={`pl-2 pr-6 truncate flex items-center gap-1 ${isConvUnread(conv) ? 'font-bold text-violet-200' : 'font-medium'}`}>
+                        @{other.username}
+                        {isMuted(conv) && <span className="text-zinc-500 text-xs">🔕</span>}
+                      </div>
                     </Link>
                   </li>
                 )
@@ -366,12 +510,48 @@ export function Sidebar() {
             </ul>
           )}
         </div>
+
+        {archivedConversations.length > 0 && (
+          <div className="mt-4">
+            <h2 className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-zinc-600">
+              Archivées
+            </h2>
+            <ul className="space-y-1">
+              {archivedConversations.map((conv) => {
+                const other =
+                  conv.type === 'direct'
+                    ? conv.conversation_participants.find((cp) => cp.profiles?.id !== user?.id)
+                        ?.profiles
+                    : null
+                const label =
+                  conv.type === 'group'
+                    ? conv.name || 'Groupe'
+                    : other
+                      ? `@${other.username}`
+                      : 'Discussion'
+                return (
+                  <li key={conv.id}>
+                    <Link
+                      href={`/chat/${conv.id}`}
+                      className={`block rounded-xl px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-900 ${
+                        activeId === conv.id ? 'bg-zinc-800 text-zinc-300' : ''
+                      }`}
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
       </div>
       <div className="border-t border-zinc-900 p-4">
+        <ThemeSelector />
         <button
           type="button"
           onClick={() => setShowKeySettings(true)}
-          className="mb-3 w-full rounded-lg px-2 py-2 text-left text-xs text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-300"
+          className="mt-3 w-full rounded-lg px-2 py-2 text-left text-xs text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-300"
         >
           Sauvegarder mes clés
         </button>
@@ -402,6 +582,12 @@ export function Sidebar() {
 
       {showCreateGroup && <CreateGroupModal onClose={() => setShowCreateGroup(false)} />}
       {showKeySettings && <KeySettingsModal onClose={() => setShowKeySettings(false)} />}
+      {showFolderManager && (
+        <FolderManager
+          onClose={() => setShowFolderManager(false)}
+          onFolderCreated={handleFolderCreated}
+        />
+      )}
     </aside>
   )
 }

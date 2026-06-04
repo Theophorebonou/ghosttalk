@@ -33,6 +33,10 @@ Dans **SQL Editor**, exécute **dans l’ordre** chaque fichier de `supabase/mig
 | `007_leave_group.sql` | Quitter un groupe |
 | `008_conversation_names.sql` | Noms de groupes |
 | `009_storage_media.sql` | Bucket fichiers chiffrés |
+| `010_unread_messages.sql` | Non-lus (sidebar) |
+| `011_message_reads_ephemeral.sql` | Accusés de lecture + messages sans trace |
+| `012_stories.sql` | Statuts 24h + bucket `story-media` |
+| `013_telegram_parity.sql` | Édition, réactions, épinglage, archive, mute, blocage, présence |
 
 Ou en CLI (depuis la racine du repo) :
 
@@ -145,13 +149,16 @@ Si l’upload échoue : vérifie que `009_storage_media.sql` est appliqué et qu
 
 ## 6. Checklist avant mise en ligne
 
-- [ ] Toutes les migrations `001` → `009` exécutées
+- [ ] Toutes les migrations `001` → `013` exécutées
 - [ ] Bucket `conversation-media` présent
 - [ ] Auth : Anonymous + Email (et Phone si besoin)
 - [ ] Redirect URLs production configurées
 - [ ] Variables `NEXT_PUBLIC_*` sur Vercel
 - [ ] `npm run build` OK en local
 - [ ] Test : inscription fantôme, message texte, envoi image/vidéo
+- [ ] Test : message sans trace (timer + après lecture), accusés de lecture (✓✓), vocal masqué optionnel
+- [ ] Test : publier un statut, le voir depuis un contact, répondre en DM
+- [ ] Bucket `story-media` présent (migration `012`)
 
 ---
 
