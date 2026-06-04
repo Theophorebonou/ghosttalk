@@ -593,41 +593,72 @@ export function ChatWindow({ conversationId }) {
   const memberCount = participants.length
 
   return (
-    <div className="flex h-full flex-1 flex-col">
-      <header className="relative z-20 flex items-center justify-between border-b border-violet-500/10 bg-[#2a2838]/80 px-4 py-3 md:px-6 md:py-4 backdrop-blur-md">
+    <div className="flex h-full flex-1 flex-col bg-background">
+      {/* Header */}
+      <header className="relative z-20 flex items-center justify-between border-b border-border bg-surface-highlight px-3 py-2">
         <div className="flex min-w-0 items-center gap-3">
           <Link
             href="/chat"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-800/50 hover:text-zinc-200 md:hidden"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text md:hidden"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
+
+          {/* Avatar */}
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isGroup ? 'bg-primary/20' : 'bg-surface'}`}>
+            {isGroup ? (
+              <GroupIcon className="h-5 w-5 text-primary" />
+            ) : otherUser ? (
+              <span className="text-lg font-semibold text-text">
+                {otherUser.username.charAt(0).toUpperCase()}
+              </span>
+            ) : (
+              <div className="h-full w-full animate-pulse rounded-full bg-surface" />
+            )}
+          </div>
+
           <div className="min-w-0">
             {isGroup ? (
               <div>
-                <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-100">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">
-                    <GroupIcon className="h-4 w-4" />
-                  </span>
-                  <span className="truncate">{conversation?.name?.trim() || 'Groupe sans nom'}</span>
-                  {isMuted && <span className="text-zinc-500 text-sm">🔕</span>}
+                <h2 className="flex items-center gap-2 text-base font-semibold text-text">
+                  <span className="truncate">{conversation?.name?.trim() || 'Groupe'}</span>
+                  {isMuted && (
+                    <svg className="h-4 w-4 text-text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                    </svg>
+                  )}
                 </h2>
-                <p className="mt-0.5 text-xs text-zinc-500">{memberCount} membres</p>
+                <p className="text-xs text-text-muted">{memberCount} membres</p>
               </div>
             ) : otherUser ? (
               <div>
-                <h2 className="truncate text-lg font-semibold text-zinc-100 flex items-center gap-2">
-                  @{otherUser.username}
-                  {isMuted && <span className="text-zinc-500 text-sm">🔕</span>}
+                <h2 className="flex items-center gap-2 text-base font-semibold text-text">
+                  <span className="truncate">@{otherUser.username}</span>
+                  {isMuted && (
+                    <svg className="h-4 w-4 text-text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                    </svg>
+                  )}
                 </h2>
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  {typingLabel || presenceLabel || 'messagerie chiffrée'}
+                <p className="text-xs text-text-muted">
+                  {typingLabel ? (
+                    <span className="text-primary">{typingLabel}</span>
+                  ) : presenceLabel ? (
+                    presenceLabel
+                  ) : (
+                    'chiffre de bout en bout'
+                  )}
                 </p>
               </div>
             ) : (
-              <div className="h-6 w-32 animate-pulse rounded bg-zinc-800" />
+              <div className="space-y-1">
+                <div className="h-5 w-28 animate-pulse rounded bg-surface" />
+                <div className="h-3 w-20 animate-pulse rounded bg-surface" />
+              </div>
             )}
           </div>
         </div>
@@ -636,17 +667,23 @@ export function ChatWindow({ conversationId }) {
           <button
             type="button"
             onClick={() => setShowSearch((v) => !v)}
-            className="rounded-full px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
+            title="Rechercher"
           >
-            Rechercher
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </button>
           {isGroup && (
             <button
               type="button"
-              className="rounded-full px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
               onClick={() => setShowMembersModal(true)}
+              title="Membres"
             >
-              Membres
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
             </button>
           )}
           <ChatHeaderMenu
@@ -727,15 +764,23 @@ export function ChatWindow({ conversationId }) {
 
       <WellbeingBar />
 
-      <div className="relative flex-1 overflow-y-auto scroll-smooth p-4">
+      {/* Messages area with chat background */}
+      <div className="relative flex-1 overflow-y-auto scroll-smooth py-2" style={{ backgroundColor: 'var(--background)' }}>
         {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <p className="text-sm text-zinc-500">
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-highlight">
+              <svg className="h-8 w-8 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <p className="text-sm text-text-muted">
               {isGroup
-                ? 'Aucun message dans ce groupe. Soyez le premier !'
-                : 'Aucun message. Envoyez le premier !'}
+                ? 'Aucun message dans ce groupe'
+                : 'Aucun message'}
             </p>
-            <p className="text-xs text-zinc-600">Vos échanges restent chiffrés de bout en bout</p>
+            <p className="text-xs text-text-muted">
+              Les messages sont chiffres de bout en bout
+            </p>
           </div>
         ) : (
           <div className="flex flex-col">
@@ -783,9 +828,9 @@ export function ChatWindow({ conversationId }) {
       </div>
 
       {typingLabel && (
-        <p className="border-t border-violet-500/5 px-4 py-1 text-xs italic text-violet-300/80">
-          {typingLabel}
-        </p>
+        <div className="border-t border-border bg-surface px-4 py-2">
+          <p className="text-xs text-primary">{typingLabel}</p>
+        </div>
       )}
 
       <ChatInput

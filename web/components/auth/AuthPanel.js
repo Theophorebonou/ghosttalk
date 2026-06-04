@@ -2,20 +2,23 @@
 
 export function AuthPanel({ children, onBack, title }) {
   return (
-    <div className="ghost-panel-enter w-full max-w-md">
+    <div className="w-full max-w-md animate-fade-in">
       {onBack && (
         <button
           type="button"
           onClick={onBack}
-          className="mb-6 flex items-center gap-1 text-sm text-zinc-500 transition hover:text-zinc-200"
+          className="mb-6 flex items-center gap-2 text-sm text-text-muted transition hover:text-text"
         >
-          ← Accueil
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Retour
         </button>
       )}
       {title && (
-        <h2 className="mb-6 text-center text-lg font-semibold text-zinc-200">{title}</h2>
+        <h2 className="mb-6 text-center text-xl font-semibold text-text">{title}</h2>
       )}
-      <div className="rounded-2xl border border-violet-500/15 bg-[#353347]/90 p-6 shadow-xl backdrop-blur-xl">
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-lg">
         {children}
       </div>
     </div>
