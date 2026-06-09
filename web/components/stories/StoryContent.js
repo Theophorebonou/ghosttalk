@@ -63,14 +63,14 @@ export function StoryContent({ payload, authorPublicKey }) {
 
   if (payload?.t === 'text') {
     return (
-      <p className="max-w-lg whitespace-pre-wrap text-center text-xl leading-relaxed text-zinc-100">
+      <p className="max-w-lg whitespace-pre-wrap text-center text-xl leading-relaxed text-white/90">
         {payload.b}
       </p>
     )
   }
 
   if (payload?.t === 'error') {
-    return <p className="text-sm text-red-300">{payload.message}</p>
+    return <p className="text-sm text-error">{payload.message}</p>
   }
 
   if (payload?.t === 'image' || payload?.v === 2) {

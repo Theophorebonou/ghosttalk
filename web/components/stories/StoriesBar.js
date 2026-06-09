@@ -86,16 +86,16 @@ export function StoriesBar() {
 
   return (
     <>
-      <div className="border-b border-violet-500/10 px-3 py-3">
+      <div className="border-b border-border px-3 py-3">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
             Statuts
           </h2>
-          <span className="text-[10px] text-zinc-600">24 h · contacts</span>
+          <span className="text-[10px] text-text-muted">24 h · contacts</span>
         </div>
 
         {loading ? (
-          <div className="h-16 animate-pulse rounded-lg bg-zinc-800/50" />
+          <div className="h-16 animate-pulse rounded-lg bg-surface-highlight/50" />
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin">
             <StoryAvatar
@@ -120,7 +120,7 @@ export function StoriesBar() {
             ))}
 
             {contactGroups.length === 0 && !myGroup && (
-              <p className="self-center text-xs text-zinc-500">
+              <p className="self-center text-xs text-text-muted">
                 Aucun statut — ajoutez des contacts en discutant
               </p>
             )}
@@ -130,7 +130,7 @@ export function StoriesBar() {
         <button
           type="button"
           onClick={() => setShowCreate(true)}
-          className="mt-2 w-full rounded-lg border border-dashed border-violet-500/25 py-1.5 text-[11px] text-violet-300/80 transition hover:border-violet-500/50 hover:bg-violet-500/5"
+          className="mt-2 w-full rounded-lg border border-dashed border-primary/25 py-1.5 text-[11px] text-primary/70 transition hover:border-primary/50 hover:bg-primary/5"
         >
           + Publier un statut
         </button>

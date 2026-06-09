@@ -21,10 +21,10 @@ export function StoryAvatar({
         className={`rounded-full p-[2px] ${
           hasUnviewed
             ? 'bg-gradient-to-tr from-violet-500 via-fuchsia-500 to-violet-300'
-            : 'bg-zinc-600'
+            : 'bg-border'
         }`}
       >
-        <div className={`${dim} overflow-hidden rounded-full ring-2 ring-[#2a2838]`}>
+        <div className={`${dim} overflow-hidden rounded-full ring-2 ring-background`}>
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -33,13 +33,13 @@ export function StoryAvatar({
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-zinc-800 text-sm font-bold text-violet-300">
+            <div className="flex h-full w-full items-center justify-center bg-surface-highlight text-sm font-bold text-primary">
               {username?.charAt(0)?.toUpperCase() ?? '?'}
             </div>
           )}
         </div>
       </div>
-      <span className="max-w-[4.5rem] truncate text-[10px] text-zinc-400">
+      <span className="max-w-[4.5rem] truncate text-[10px] text-text-muted">
         {isOwn ? 'Vous' : `@${username}`}
       </span>
     </button>

@@ -36,6 +36,7 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
   const [loading, setLoading] = useState(true)
   const [replyText, setReplyText] = useState('')
   const [replying, setReplying] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const stories = storyGroup?.stories ?? []
   const author = storyGroup?.author
@@ -101,9 +102,6 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
 
   async function handleDeleteStory() {
     if (!current || !isOwn) return
-    const ok = window.confirm('Supprimer ce statut ?')
-    if (!ok) return
-
     setLoading(true)
     try {
       await supabase.from('stories').delete().eq('id', current.id)
@@ -112,6 +110,8 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
     } catch (err) {
       console.error('Delete story error', err)
       setLoading(false)
+    } finally {
+      setConfirmDelete(false)
     }
   }
 
@@ -148,19 +148,19 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
 
       <header className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="h-9 w-9 overflow-hidden rounded-full bg-violet-600/30">
+          <div className="h-9 w-9 overflow-hidden rounded-full bg-primary/30">
             {author.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={author.avatar_url} alt={author.username ?? ''} className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-sm font-bold text-violet-200">
+              <div className="flex h-full w-full items-center justify-center text-sm font-bold text-primary">
                 {author.username?.charAt(0)?.toUpperCase()}
               </div>
             )}
           </div>
           <div>
             <p className="text-sm font-semibold text-white">@{author.username}</p>
-            <p className="text-[10px] text-zinc-500">
+            <p className="text-[10px] text-white/50">
               {new Date(current.created_at).toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -172,23 +172,48 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
           {isOwn && (
             <div className="flex items-center gap-3 rounded-full bg-black/40 px-3 py-1.5 text-xs text-white backdrop-blur-sm">
               <span className="flex items-center gap-1 font-medium" title={`${viewCount} vue(s)`}>
-                <span className="text-[14px]">👁</span> {viewCount}
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                {viewCount}
               </span>
               <div className="h-3 w-[1px] bg-white/20" />
-              <button
-                type="button"
-                className="text-red-400 hover:text-red-300 transition-colors"
-                onClick={handleDeleteStory}
-                title="Supprimer la story"
-              >
-                🗑️
-              </button>
+              {confirmDelete ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="text-white/60 transition hover:text-white"
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    className="font-semibold text-red-400 transition hover:text-red-300"
+                    onClick={handleDeleteStory}
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="text-white/60 transition hover:text-red-400"
+                  onClick={() => setConfirmDelete(true)}
+                  title="Supprimer ce statut"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
             </div>
           )}
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
+            className="rounded-full p-2 text-white/60 hover:bg-white/10 hover:text-white"
             aria-label="Fermer"
           >
             ✕
@@ -211,7 +236,7 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
 
       <div className="flex flex-1 flex-col items-center justify-center px-6 pb-4">
         {loading ? (
-          <Spinner className="h-8 w-8 text-violet-400" />
+          <Spinner className="h-8 w-8 text-primary" />
         ) : (
           <StoryContent
             payload={decrypted?.payload}
@@ -230,7 +255,7 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder="Répondre en message privé…"
-              className="flex-1 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-violet-500 focus:outline-none"
+              className="flex-1 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-sm text-white placeholder:text-white/40 backdrop-blur-sm focus:border-white/40 focus:outline-none"
               disabled={replying}
             />
             <Button type="submit" disabled={replying || !replyText.trim()} className="rounded-full px-5">
