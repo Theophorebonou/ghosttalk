@@ -37,6 +37,7 @@ export async function getContactProfiles(currentUserId) {
         id,
         username,
         avatar_seed,
+        avatar_url,
         public_key
       )
     `
@@ -62,7 +63,7 @@ async function attachAuthors(stories) {
   const authorIds = [...new Set(stories.map((s) => s.author_id))]
   const { data: profiles, error } = await supabase
     .from('profiles')
-    .select('id, username, avatar_seed, public_key')
+    .select('id, username, avatar_seed, avatar_url, public_key')
     .in('id', authorIds)
 
   if (error) throw error

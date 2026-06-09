@@ -37,8 +37,8 @@ export async function getCall(callId) {
     .from('calls')
     .select(`
       *,
-      caller:profiles!calls_caller_id_fkey (id, username, display_name, avatar_seed),
-      callee:profiles!calls_callee_id_fkey (id, username, display_name, avatar_seed)
+      caller:profiles!calls_caller_id_fkey (id, username, display_name, avatar_seed, avatar_url),
+      callee:profiles!calls_callee_id_fkey (id, username, display_name, avatar_seed, avatar_url)
     `)
     .eq('id', callId)
     .single()
@@ -75,7 +75,7 @@ export async function getIncomingCalls() {
     .from('calls')
     .select(`
       *,
-      caller:profiles!calls_caller_id_fkey (username, display_name, avatar_seed)
+      caller:profiles!calls_caller_id_fkey (username, display_name, avatar_seed, avatar_url)
     `)
     .eq('callee_id', session.user.id)
     .eq('status', 'ringing')
@@ -88,30 +88,26 @@ export async function getIncomingCalls() {
   return data ?? []
 }
 
-export function subscribeToIncomingCalls(callback) {
-  let channel = null
+export function subscribeToIncomingCalls(userId, callback) {
+  if (!userId) return { unsubscribe: () => {} }
 
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (!session?.user) return
-
-    channel = supabase
-      .channel('incoming_calls')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'calls',
-          filter: `callee_id=eq.${session.user.id}`,
-        },
-        (payload) => {
-          if (payload.new?.status === 'ringing') {
-            callback(payload.new)
-          }
+  const channel = supabase
+    .channel('incoming_calls')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'calls',
+        filter: `callee_id=eq.${userId}`,
+      },
+      (payload) => {
+        if (payload.new?.status === 'ringing') {
+          callback(payload.new)
         }
-      )
-      .subscribe()
-  })
+      }
+    )
+    .subscribe()
 
   return {
     unsubscribe: () => channel?.unsubscribe(),

@@ -15,6 +15,10 @@ export const THEMES = {
       success: '#00a884',
       error: '#ea4335',
       warning: '#f7c948',
+      messageOut: '#005c4b',
+      messageIn: '#202c33',
+      messageOutText: '#ffffff',
+      messageInText: '#e9edef',
     },
   },
   light: {
@@ -33,6 +37,10 @@ export const THEMES = {
       success: '#00a884',
       error: '#ea4335',
       warning: '#f7c948',
+      messageOut: '#d9fdd3',
+      messageIn: '#ffffff',
+      messageOutText: '#111b21',
+      messageInText: '#111b21',
     },
   },
   midnight: {
@@ -51,6 +59,10 @@ export const THEMES = {
       success: '#25d366',
       error: '#ea4335',
       warning: '#f7c948',
+      messageOut: '#004d3a',
+      messageIn: '#1a2328',
+      messageOutText: '#ffffff',
+      messageInText: '#e9edef',
     },
   },
   ocean: {
@@ -69,6 +81,10 @@ export const THEMES = {
       success: '#00a884',
       error: '#ea4335',
       warning: '#f7c948',
+      messageOut: '#004466',
+      messageIn: '#1a2d47',
+      messageOutText: '#ffffff',
+      messageInText: '#e9edef',
     },
   },
 }
@@ -96,6 +112,10 @@ export function applyTheme(themeId) {
   root.style.setProperty('--success', theme.colors.success)
   root.style.setProperty('--error', theme.colors.error)
   root.style.setProperty('--warning', theme.colors.warning)
+  root.style.setProperty('--message-out', theme.colors.messageOut)
+  root.style.setProperty('--message-in', theme.colors.messageIn)
+  root.style.setProperty('--message-out-text', theme.colors.messageOutText)
+  root.style.setProperty('--message-in-text', theme.colors.messageInText)
 
   Object.entries(theme.colors).forEach(([key, value]) => {
     root.style.setProperty(`--color-${key}`, value)

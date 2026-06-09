@@ -37,7 +37,7 @@ export function subscribeToReactions(conversationId, onChange) {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'message_reactions' },
-      () => onChange()
+      (payload) => onChange(payload)
     )
     .subscribe()
 }

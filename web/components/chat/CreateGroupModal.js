@@ -67,14 +67,14 @@ export function CreateGroupModal({ onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-zinc-900 p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-bold text-zinc-100">Créer un groupe</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => onClose?.()}>
+      <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="mb-4 text-xl font-bold text-text">Créer un groupe</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
           {/* Nom du groupe */}
           <div>
-            <label htmlFor="groupName" className="mb-2 block text-sm text-zinc-400">
+            <label htmlFor="groupName" className="mb-2 block text-sm text-text-muted">
               Nom du groupe
             </label>
             <Input
@@ -88,7 +88,7 @@ export function CreateGroupModal({ onClose }) {
 
           {/* Recherche de membres */}
           <div>
-            <label className="mb-2 block text-sm text-zinc-400">
+            <label className="mb-2 block text-sm text-text-muted">
               Ajouter des membres
             </label>
             <Input
@@ -104,19 +104,19 @@ export function CreateGroupModal({ onClose }) {
               </div>
             )}
             {searchResults.length > 0 && (
-              <ul className="mt-2 rounded-xl bg-zinc-800 overflow-hidden">
+              <ul className="mt-2 overflow-hidden rounded-xl bg-surface-highlight">
                 {searchResults.map(user => {
                   const isSelected = selectedMembers.find(m => m.id === user.id)
                   return (
                     <li
                       key={user.id}
                       onClick={() => toggleMember(user)}
-                      className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
-                        isSelected ? 'bg-purple-700/40' : 'hover:bg-zinc-700'
+                      className={`flex cursor-pointer items-center justify-between px-4 py-3 transition-colors ${
+                        isSelected ? 'bg-primary/20' : 'hover:bg-surface'
                       }`}
                     >
-                      <span className="text-zinc-100 text-sm">{user.username}</span>
-                      {isSelected && <span className="text-purple-400 text-xs font-bold">✓ Ajouté</span>}
+                      <span className="text-sm text-text">{user.username}</span>
+                      {isSelected && <span className="text-xs font-bold text-primary">✓ Ajouté</span>}
                     </li>
                   )
                 })}
@@ -131,7 +131,7 @@ export function CreateGroupModal({ onClose }) {
                 <span
                   key={member.id}
                   onClick={() => toggleMember(member)}
-                  className="flex items-center gap-1 bg-purple-600/30 text-purple-300 text-xs px-3 py-1 rounded-full cursor-pointer hover:bg-red-600/30 hover:text-red-300 transition-colors"
+                  className="flex cursor-pointer items-center gap-1 rounded-full bg-primary/20 px-3 py-1 text-xs text-primary transition-colors hover:bg-error/20 hover:text-error"
                 >
                   {member.username} ✕
                 </span>
@@ -156,7 +156,7 @@ export function CreateGroupModal({ onClose }) {
             </Button>
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-error">{error}</p>}
         </form>
       </div>
     </div>

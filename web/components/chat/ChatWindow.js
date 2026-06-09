@@ -18,7 +18,7 @@ import {
   unpinMessage,
 } from '@/lib/api/messageActions'
 import { setMessageReaction, removeMessageReaction, subscribeToReactions } from '@/lib/api/reactions'
-import { getUserPresence, updatePresence, isUserBlocked, getBlockedUsers } from '@/lib/api/conversationSettings'
+import { getUserPresence, updatePresence, isUserBlocked, getBlockedUsers, subscribeToPresence } from '@/lib/api/conversationSettings'
 import { uploadEncryptedMedia, prepareEncryptedMedia } from '@/lib/api/media'
 import { initiateCall, getIncomingCalls, subscribeToIncomingCalls, getActiveCall, updateCallStatus } from '@/lib/api/calls'
 import { CallManager, isWebRTCSupported } from '@/lib/webrtc/callManager'
@@ -37,9 +37,10 @@ import { ChatInput } from './ChatInput'
 import { ManageGroupMembersModal } from './ManageGroupMembersModal'
 import { MessageBubble } from './MessageBubble'
 import { MessageDateSeparator } from './MessageDateSeparator'
-import { isSameCalendarDay } from '@/lib/utils/messageDates'
+import { isSameCalendarDay, formatLastSeen } from '@/lib/utils/messageDates'
 import { WellbeingBar } from './WellbeingBar'
 import { GroupIcon } from '@/components/ui/GroupIcon'
+import { UserAvatar } from '@/components/ui/UserAvatar'
 import { ChatHeaderMenu } from './ChatHeaderMenu'
 import { ChatSearchPanel } from './ChatSearchPanel'
 import { ForwardMessageModal } from './ForwardMessageModal'
@@ -80,6 +81,8 @@ export function ChatWindow({ conversationId }) {
   const messagesEndRef = useRef(null)
   const messageRefs = useRef({})
   const markedReadRef = useRef(new Set())
+  const afterReadTimersRef = useRef({})
+  const refreshMessagesRef = useRef(null)
 
   const { typingLabel, broadcastTyping } = useTypingIndicator(
     conversationId,
@@ -114,8 +117,8 @@ export function ChatWindow({ conversationId }) {
     }
     
     // Écouter les appels entrants
-    if (isWebRTCSupported()) {
-      const channel = subscribeToIncomingCalls((call) => {
+    if (isWebRTCSupported() && user?.id) {
+      const channel = subscribeToIncomingCalls(user.id, (call) => {
         setIncomingCall(call)
         setShowCallModal(true)
       })
@@ -134,24 +137,28 @@ export function ChatWindow({ conversationId }) {
 
   useEffect(() => {
     if (!otherUser?.id || isGroup) return
-    
-    // Vérifier si bloqué
+
     isUserBlocked(otherUser.id).then(setIsOtherUserBlocked).catch(console.error)
-    
-    function refresh() {
-      getUserPresence(otherUser.id).then((p) => {
-        if (!p) return
-        if (p.is_online) setPresenceLabel('en ligne')
-        else if (p.last_seen_at) {
-          setPresenceLabel(
-            `vu ${new Date(p.last_seen_at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-          )
-        }
-      })
+
+    function applyPresence(p) {
+      if (!p) return
+      const STALE_MS = 3 * 60 * 1000
+      const isReallyOnline =
+        p.is_online &&
+        p.last_seen_at &&
+        Date.now() - new Date(p.last_seen_at).getTime() < STALE_MS
+
+      if (isReallyOnline) {
+        setPresenceLabel('en ligne')
+      } else if (p.last_seen_at) {
+        setPresenceLabel(formatLastSeen(new Date(p.last_seen_at)))
+      }
     }
-    refresh()
-    const t = setInterval(refresh, 30000)
-    return () => clearInterval(t)
+
+    getUserPresence(otherUser.id).then(applyPresence)
+
+    const channel = subscribeToPresence(otherUser.id, applyPresence)
+    return () => channel?.unsubscribe()
   }, [otherUser?.id, isGroup])
 
   async function reloadConversation() {
@@ -233,10 +240,11 @@ export function ChatWindow({ conversationId }) {
     if (!sharedKey) return
     const history = await getMessages(conversationId)
     const decrypted = await Promise.all(history.map((m) => decryptChatMessage(sharedKey, m)))
-    // Filtrer les messages des utilisateurs bloqués
     const filtered = decrypted.filter((m) => !blockedUserIds.has(m.sender_id))
     setMessages(filtered)
   }, [sharedKey, conversationId, blockedUserIds])
+
+  refreshMessagesRef.current = refreshMessages
 
   useEffect(() => {
     if (!user) return
@@ -312,26 +320,53 @@ export function ChatWindow({ conversationId }) {
     if (!user?.id || !sharedKey || loading) return
     if (getHideReadReceipts()) return
 
-    const toMark = messages
-      .filter((m) => m.sender_id !== user.id && !markedReadRef.current.has(m.id))
-      .map((m) => m.id)
+    const normalToMark = []
+    const afterReadToSchedule = []
 
-    if (toMark.length === 0) return
-    toMark.forEach((id) => markedReadRef.current.add(id))
-    markMessagesRead(toMark)
-    markAsRead(conversationId).catch(console.error)
+    messages
+      .filter((m) => m.sender_id !== user.id && !markedReadRef.current.has(m.id))
+      .forEach((m) => {
+        markedReadRef.current.add(m.id)
+        if (m.ephemeral_kind === 'after_read') {
+          afterReadToSchedule.push(m)
+        } else {
+          normalToMark.push(m.id)
+        }
+      })
+
+    if (normalToMark.length > 0) {
+      markMessagesRead(normalToMark)
+      markAsRead(conversationId).catch(console.error)
+    }
+
+    afterReadToSchedule.forEach((m) => {
+      if (afterReadTimersRef.current[m.id]) return
+      afterReadTimersRef.current[m.id] = setTimeout(() => {
+        markMessagesRead([m.id])
+        delete afterReadTimersRef.current[m.id]
+      }, 10000)
+    })
   }, [messages, user?.id, sharedKey, loading, conversationId])
+
+  useEffect(() => {
+    return () => {
+      Object.values(afterReadTimersRef.current).forEach(clearTimeout)
+      afterReadTimersRef.current = {}
+    }
+  }, [])
 
   useEffect(() => {
     if (!conversationId || !sharedKey) return
     const tick = async () => {
+      setMessages((prev) => {
+        const hasEphemeral = prev.some((m) => m.expires_at)
+        if (!hasEphemeral) return prev
+        return prev.filter((m) => !m.expires_at || new Date(m.expires_at).getTime() > Date.now())
+      })
       await purgeExpiredInConversation(conversationId).catch(() => { })
-      setMessages((prev) =>
-        prev.filter((m) => !m.expires_at || new Date(m.expires_at).getTime() > Date.now())
-      )
     }
     tick()
-    const id = setInterval(tick, 5000)
+    const id = setInterval(tick, 30000)
     return () => clearInterval(id)
   }, [conversationId, sharedKey])
 
@@ -402,8 +437,40 @@ export function ChatWindow({ conversationId }) {
           )
         })
 
-        reactChannel = subscribeToReactions(conversationId, () => {
-          if (isMounted) refreshMessages()
+        reactChannel = subscribeToReactions(conversationId, async (payload) => {
+          if (!isMounted) return
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const { message_id, user_id, emoji } = payload.new
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== message_id) return m
+                const existing = m.message_reactions || []
+                const idx = existing.findIndex((r) => r.user_id === user_id)
+                let reactions
+                if (idx >= 0) {
+                  reactions = existing.map((r) =>
+                    r.user_id === user_id ? { ...r, emoji } : r
+                  )
+                } else {
+                  reactions = [...existing, { user_id, emoji }]
+                }
+                return { ...m, message_reactions: reactions }
+              })
+            )
+          } else if (payload.eventType === 'DELETE') {
+            const { message_id, user_id } = payload.old
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== message_id) return m
+                return {
+                  ...m,
+                  message_reactions: (m.message_reactions || []).filter(
+                    (r) => r.user_id !== user_id
+                  ),
+                }
+              })
+            )
+          }
         })
       } catch (err) {
         if (isMounted) setError(err.message)
@@ -418,7 +485,7 @@ export function ChatWindow({ conversationId }) {
       readChannel?.unsubscribe?.()
       reactChannel?.unsubscribe?.()
     }
-  }, [sharedKey, conversationId, user, refreshMessages, isGroup, otherUser?.username, blockedUserIds])
+  }, [sharedKey, conversationId, user, isGroup, otherUser?.username, blockedUserIds])
 
   function getReplyToPayload() {
     if (!replyToMessage?.payload) return null
@@ -546,12 +613,34 @@ export function ChatWindow({ conversationId }) {
 
   async function handleReact(message, emoji) {
     const mine = message.message_reactions?.find((r) => r.user_id === user?.id)
-    if (mine?.emoji === emoji) {
-      await removeMessageReaction(message.id)
-    } else {
-      await setMessageReaction(message.id, emoji)
+
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== message.id) return m
+        const reactions = [...(m.message_reactions || [])]
+        const idx = reactions.findIndex((r) => r.user_id === user?.id)
+        if (mine?.emoji === emoji) {
+          if (idx >= 0) reactions.splice(idx, 1)
+        } else {
+          if (idx >= 0) {
+            reactions[idx] = { ...reactions[idx], emoji }
+          } else {
+            reactions.push({ user_id: user?.id, emoji })
+          }
+        }
+        return { ...m, message_reactions: reactions }
+      })
+    )
+
+    try {
+      if (mine?.emoji === emoji) {
+        await removeMessageReaction(message.id)
+      } else {
+        await setMessageReaction(message.id, emoji)
+      }
+    } catch (err) {
+      refreshMessagesRef.current?.()
     }
-    await refreshMessages()
   }
 
   async function handleUnblocked() {
@@ -598,17 +687,15 @@ export function ChatWindow({ conversationId }) {
           </Link>
 
           {/* Avatar */}
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isGroup ? 'bg-primary/20' : 'bg-surface'}`}>
-            {isGroup ? (
+          {isGroup ? (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20">
               <GroupIcon className="h-5 w-5 text-primary" />
-            ) : otherUser ? (
-              <span className="text-lg font-semibold text-text">
-                {otherUser.username.charAt(0).toUpperCase()}
-              </span>
-            ) : (
-              <div className="h-full w-full animate-pulse rounded-full bg-surface" />
-            )}
-          </div>
+            </div>
+          ) : otherUser ? (
+            <UserAvatar username={otherUser.username} avatarUrl={otherUser.avatar_url} size="md" />
+          ) : (
+            <div className="h-10 w-10 animate-pulse rounded-full bg-surface" />
+          )}
 
           <div className="min-w-0">
             {isGroup ? (
@@ -665,6 +752,30 @@ export function ChatWindow({ conversationId }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
+          {!isGroup && isWebRTCSupported() && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleStartCall('audio')}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
+                title="Appel audio"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStartCall('video')}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
+                title="Appel vidéo"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </>
+          )}
           {isGroup && (
             <button
               type="button"

@@ -64,6 +64,7 @@ export function ChatInput({
 
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
+  const [liveBars, setLiveBars] = useState([])
   const [ghostVoiceEnabled, setGhostVoiceEnabled] = useState(false)
   const [voicePreset, setVoicePreset] = useState('phantom')
   const [transcript, setTranscript] = useState('')
@@ -79,6 +80,9 @@ export function ChatInput({
   const mediaRecorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
+  const analyserRef = useRef(null)
+  const animFrameRef = useRef(null)
+  const audioCtxRef = useRef(null)
   const recognitionRef = useRef(null)
   const ghostVoiceEnabledRef = useRef(ghostVoiceEnabled)
   const voicePresetRef = useRef(voicePreset)
@@ -129,10 +133,42 @@ export function ChatInput({
     }
   }
 
+  function stopLiveWaveform() {
+    if (animFrameRef.current) { cancelAnimationFrame(animFrameRef.current); animFrameRef.current = null }
+    if (audioCtxRef.current) { audioCtxRef.current.close().catch(() => {}); audioCtxRef.current = null }
+    analyserRef.current = null
+    setLiveBars([])
+  }
+
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
+
+      // Live waveform — time-domain RMS (responds to voice volume, not frequency)
+      const audioCtx = new AudioContext()
+      audioCtxRef.current = audioCtx
+      const analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 256
+      analyserRef.current = analyser
+      audioCtx.createMediaStreamSource(stream).connect(analyser)
+      const tdData = new Uint8Array(analyser.fftSize)
+      const LIVE_BARS = 30
+      function tick() {
+        analyser.getByteTimeDomainData(tdData)
+        const block = Math.floor(tdData.length / LIVE_BARS)
+        const bars = Array.from({ length: LIVE_BARS }, (_, i) => {
+          let rms = 0
+          for (let j = 0; j < block; j++) {
+            const v = (tdData[i * block + j] - 128) / 128
+            rms += v * v
+          }
+          return Math.max(Math.sqrt(rms / block), 0.06)
+        })
+        setLiveBars(bars)
+        animFrameRef.current = requestAnimationFrame(tick)
+      }
+      animFrameRef.current = requestAnimationFrame(tick)
 
       let mimeType = 'audio/webm;codecs=opus'
       if (!MediaRecorder.isTypeSupported(mimeType)) {
@@ -153,6 +189,7 @@ export function ChatInput({
       recorder.onstop = async () => {
         const rawChunks = chunksRef.current
         stream.getTracks().forEach((t) => t.stop())
+        stopLiveWaveform()
 
         // Arrêter la transcription
         if (recognitionRef.current) {
@@ -233,6 +270,7 @@ export function ChatInput({
       if (cancel) {
         mediaRecorderRef.current.onstop = () => {
           streamRef.current?.getTracks().forEach((t) => t.stop())
+          stopLiveWaveform()
           setStatus('Mémo vocal annulé')
           setTimeout(() => setStatus(null), 2000)
         }
@@ -416,7 +454,7 @@ export function ChatInput({
               )}
             </div>
             {ephemeralMode && (
-              <span className="text-[10px] text-zinc-500">
+              <span className="text-[10px] text-text-muted">
                 Le message disparaîtra automatiquement
               </span>
             )}
@@ -425,17 +463,27 @@ export function ChatInput({
 
         {isRecording ? (
           <div className="flex flex-col gap-2">
-            <div className="flex animate-pulse-slow items-center gap-3 rounded-full border border-violet-500/50 bg-zinc-900/80 p-2 text-white shadow-[0_0_15px_rgba(139,92,246,0.2)]">
-              <div className="ml-3 h-3 w-3 shrink-0 animate-pulse rounded-full bg-red-500" />
-              <span className="flex-1 font-mono text-sm font-semibold">
-                {Math.floor(recordingTime / 60)}:
-                {(recordingTime % 60).toString().padStart(2, '0')}
+            {/* Recording bar with live waveform */}
+            <div className="flex items-center gap-2 rounded-full border border-primary/40 bg-surface px-3 py-2">
+              <div className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-error" />
+              {/* Live waveform */}
+              <div className="flex h-8 flex-1 items-end gap-px">
+                {(liveBars.length > 0 ? liveBars : Array(30).fill(0.06)).map((amp, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-sm bg-error/70 transition-all duration-75"
+                    style={{ height: `${amp * 100}%`, minHeight: 3 }}
+                  />
+                ))}
+              </div>
+              <span className="shrink-0 font-mono text-xs text-text-muted tabular-nums">
+                {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
               </span>
               <button
                 type="button"
                 disabled={loading}
                 onClick={() => stopRecording(true)}
-                className="shrink-0 px-3 py-2 text-xs font-medium text-zinc-400 hover:text-red-400"
+                className="shrink-0 px-2 py-1 text-xs text-text-muted transition hover:text-error"
               >
                 Annuler
               </button>
@@ -443,20 +491,20 @@ export function ChatInput({
                 type="button"
                 disabled={loading}
                 onClick={() => stopRecording(false)}
-                className="h-8 shrink-0 rounded-full bg-violet-600 px-4 py-1 text-xs hover:bg-violet-700"
+                className="h-8 shrink-0 rounded-full px-4 py-1 text-xs"
               >
                 {loading ? <Spinner className="h-4 w-4" /> : 'Envoyer'}
               </Button>
             </div>
 
             {voiceSupported && (
-              <div className="rounded-xl border border-violet-500/20 bg-black/30 p-3">
+              <div className="rounded-xl border border-primary/20 bg-surface p-3">
                 <label className="flex cursor-pointer items-center justify-between gap-2">
                   <div>
-                    <span className="text-xs font-semibold text-violet-200">
+                    <span className="text-xs font-semibold text-primary">
                       Masquer ma voix
                     </span>
-                    <p className="text-[10px] text-zinc-500">
+                    <p className="text-[10px] text-text-muted">
                       Activable pendant l&apos;enregistrement · grave sans ralentir
                     </p>
                   </div>
@@ -464,14 +512,14 @@ export function ChatInput({
                     type="checkbox"
                     checked={ghostVoiceEnabled}
                     onChange={(e) => setGhostVoiceEnabled(e.target.checked)}
-                    className="h-4 w-4 rounded border-zinc-600 text-violet-600"
+                    className="h-4 w-4 rounded border-border text-primary"
                   />
                 </label>
                 {ghostVoiceEnabled && (
                   <select
                     value={voicePreset}
                     onChange={(e) => setVoicePreset(e.target.value)}
-                    className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200"
+                    className="mt-2 w-full rounded-lg border border-border bg-surface-highlight px-2 py-1.5 text-xs text-text"
                   >
                     {Object.values(GHOST_VOICE_PRESETS).map((p) => (
                       <option key={p.id} value={p.id}>
@@ -484,13 +532,13 @@ export function ChatInput({
             )}
 
             {speechSupported && (
-              <div className="rounded-xl border border-violet-500/20 bg-black/30 p-3">
+              <div className="rounded-xl border border-primary/20 bg-surface p-3">
                 <label className="flex cursor-pointer items-center justify-between gap-2">
                   <div>
-                    <span className="text-xs font-semibold text-violet-200">
+                    <span className="text-xs font-semibold text-primary">
                       Transcription vocale
                     </span>
-                    <p className="text-[10px] text-zinc-500">
+                    <p className="text-[10px] text-text-muted">
                       Convertir la voix en texte en temps réel
                     </p>
                   </div>
@@ -498,12 +546,12 @@ export function ChatInput({
                     type="checkbox"
                     checked={transcriptionEnabled}
                     onChange={(e) => setTranscriptionEnabled(e.target.checked)}
-                    className="h-4 w-4 rounded border-zinc-600 text-violet-600"
+                    className="h-4 w-4 rounded border-border text-primary"
                   />
                 </label>
                 {transcript && (
-                  <div className="mt-2 rounded-lg border border-zinc-700 bg-zinc-900 p-2">
-                    <p className="text-xs text-zinc-300">{transcript}</p>
+                  <div className="mt-2 rounded-lg border border-border bg-surface-highlight p-2">
+                    <p className="text-xs text-text">{transcript}</p>
                   </div>
                 )}
               </div>

@@ -100,6 +100,7 @@ export function StoriesBar() {
           <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin">
             <StoryAvatar
               username={profile?.username ?? 'vous'}
+              avatarUrl={profile?.avatar_url}
               isOwn
               hasUnviewed={!!myGroup?.stories?.length}
               onClick={() => {
@@ -112,6 +113,7 @@ export function StoriesBar() {
               <StoryAvatar
                 key={group.author.id}
                 username={group.author.username}
+                avatarUrl={group.author.avatar_url}
                 hasUnviewed={group.hasUnviewed}
                 onClick={() => openGroup(group)}
               />

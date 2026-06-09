@@ -20,6 +20,7 @@ export async function getConversations() {
           id,
           username,
           avatar_seed,
+          avatar_url,
           public_key
         )
       )
@@ -107,6 +108,7 @@ export async function getConversationById(id) {
           id,
           username,
           avatar_seed,
+          avatar_url,
           public_key
         )
       )

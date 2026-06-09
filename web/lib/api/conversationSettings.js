@@ -54,6 +54,24 @@ export async function getUserPresence(userId) {
   return data
 }
 
+export function subscribeToPresence(userId, onChange) {
+  return supabase
+    .channel(`presence:${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${userId}`,
+      },
+      (payload) => {
+        if (payload.new) onChange({ is_online: payload.new.is_online, last_seen_at: payload.new.last_seen_at })
+      }
+    )
+    .subscribe()
+}
+
 export async function isUserBlocked(userId) {
   try {
     const { data: { user } } = await supabase.auth.getUser()

@@ -5,14 +5,15 @@ import { downloadStoryMedia } from '@/lib/api/stories'
 import { decryptInlineMedia } from '@/lib/crypto/media'
 import { deriveSharedKey } from '@/lib/crypto/e2e'
 import { importStoredKeyPair } from '@/lib/crypto/keys'
+import { unwrapV2ImagePayload } from '@/lib/crypto/storyMedia'
 
-export function StoryContent({ payload, authorPublicKey, viewerId }) {
+export function StoryContent({ payload, authorPublicKey }) {
   const [blobUrl, setBlobUrl] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (payload?.t !== 'image') return
+    if (payload?.t !== 'image' && payload?.v !== 2) return
 
     let cancelled = false
     let objectUrl
@@ -21,26 +22,31 @@ export function StoryContent({ payload, authorPublicKey, viewerId }) {
       setLoading(true)
       setError(null)
       try {
-        let buffer
-        if (payload.inline && payload.data) {
+        if (payload.v === 2) {
+          const result = await unwrapV2ImagePayload(payload, authorPublicKey)
+          if (cancelled) { URL.revokeObjectURL(result.blobUrl); return }
+          objectUrl = result.blobUrl
+        } else if (payload.decryptedUrl) {
+          objectUrl = payload.decryptedUrl
+        } else if (payload.inline && payload.data) {
           const localKeyPair = await importStoredKeyPair()
           const shared = await deriveSharedKey(localKeyPair.privateKey, authorPublicKey)
-          buffer = await decryptInlineMedia(shared, payload.data)
+          const buffer = await decryptInlineMedia(shared, payload.data)
+          if (cancelled) return
+          objectUrl = URL.createObjectURL(new Blob([buffer], { type: payload.mime || 'image/jpeg' }))
         } else if (payload.path) {
           const enc = await downloadStoryMedia(payload.path)
           const localKeyPair = await importStoredKeyPair()
           const shared = await deriveSharedKey(localKeyPair.privateKey, authorPublicKey)
           const { decryptBytes } = await import('@/lib/crypto/media')
-          buffer = await decryptBytes(shared, enc)
+          const buffer = await decryptBytes(shared, enc)
+          if (cancelled) return
+          objectUrl = URL.createObjectURL(new Blob([buffer], { type: payload.mime || 'image/jpeg' }))
         } else {
           throw new Error('Image invalide')
         }
 
-        if (cancelled) return
-        objectUrl = URL.createObjectURL(
-          new Blob([buffer], { type: payload.mime || 'image/jpeg' })
-        )
-        setBlobUrl(objectUrl)
+        if (!cancelled) setBlobUrl(objectUrl)
       } catch (err) {
         if (!cancelled) setError(err.message ?? 'Image indéchiffrable')
       } finally {
@@ -51,9 +57,9 @@ export function StoryContent({ payload, authorPublicKey, viewerId }) {
     load()
     return () => {
       cancelled = true
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      if (objectUrl && objectUrl !== payload.decryptedUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [payload, authorPublicKey, viewerId])
+  }, [payload, authorPublicKey])
 
   if (payload?.t === 'text') {
     return (
@@ -67,7 +73,7 @@ export function StoryContent({ payload, authorPublicKey, viewerId }) {
     return <p className="text-sm text-red-300">{payload.message}</p>
   }
 
-  if (payload?.t === 'image') {
+  if (payload?.t === 'image' || payload?.v === 2) {
     if (loading) return <p className="text-sm text-text-muted">Déchiffrement…</p>
     if (error) return <p className="text-sm text-error">{error}</p>
     if (blobUrl) {

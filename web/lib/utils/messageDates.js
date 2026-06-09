@@ -45,6 +45,21 @@ export function formatMessageDayLabel(iso) {
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
+/** Libellé de dernière présence : "vu à 14:32", "vu hier à 14:32", "vu le 3 juin". */
+export function formatLastSeen(date) {
+  const offset = dayOffsetFromToday(date.toISOString())
+  if (offset === 0) {
+    return `vu à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+  }
+  if (offset === 1) {
+    return `vu hier à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+  }
+  if (offset < 7) {
+    return `vu ${date.toLocaleDateString('fr-FR', { weekday: 'long' })} à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+  }
+  return `vu le ${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
+}
+
 /** Heure affichée dans la liste des conversations. */
 export function formatConversationListTime(iso) {
   if (!iso) return ''

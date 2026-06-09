@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { markStoryViewed } from '@/lib/api/stories'
 import { getOrCreateDirectConversation } from '@/lib/api/conversations'
@@ -9,6 +9,8 @@ import { StoryContent } from './StoryContent'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { supabase } from '@/lib/supabase/client'
+
+const AUTO_ADVANCE_MS = 6000
 
 const STORY_REPLY_KEY = 'ghosttalk_pending_story_reply'
 
@@ -40,6 +42,13 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
   const current = stories[index]
   const isOwn = author?.id === viewerId
 
+  const timerRef = useRef(null)
+
+  function goNext() {
+    if (index < stories.length - 1) setIndex((i) => i + 1)
+    else onClose()
+  }
+
   useEffect(() => {
     if (!current || !viewerId) return
 
@@ -57,10 +66,16 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
       markStoryViewed(current.id).then(() => onViewed?.())
     }
 
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      if (!cancelled) goNext()
+    }, AUTO_ADVANCE_MS)
+
     return () => {
       cancelled = true
+      clearTimeout(timerRef.current)
     }
-  }, [current?.id, viewerId, isOwn, onViewed])
+  }, [current?.id, viewerId, isOwn, onViewed, index, stories.length])
 
   async function handleReply(e) {
     e.preventDefault()
@@ -100,16 +115,9 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
     }
   }
 
-  function goNext() {
-    if (index < stories.length - 1) setIndex((i) => i + 1)
-    else onClose()
-  }
-
   if (!current || !author) return null
 
-  const progress = ((index + 1) / stories.length) * 100
   const viewCount = current.story_views?.length ?? 0
-
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black/95">
       <div className="flex gap-1 px-2 pt-3">
@@ -119,8 +127,20 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
             className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/20"
           >
             <div
-              className="h-full bg-white transition-all duration-300"
-              style={{ width: i < index ? '100%' : i === index ? `${progress}%` : '0%' }}
+              className="h-full bg-white"
+              style={
+                i < index
+                  ? { width: '100%' }
+                  : i === index
+                    ? {
+                        transformOrigin: 'left',
+                        animationName: 'story-progress',
+                        animationDuration: `${AUTO_ADVANCE_MS}ms`,
+                        animationTimingFunction: 'linear',
+                        animationFillMode: 'forwards',
+                      }
+                    : { width: '0%' }
+              }
             />
           </div>
         ))}
@@ -128,8 +148,15 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
 
       <header className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-600/30 text-sm font-bold text-violet-200">
-            {author.username?.charAt(0)?.toUpperCase()}
+          <div className="h-9 w-9 overflow-hidden rounded-full bg-violet-600/30">
+            {author.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={author.avatar_url} alt={author.username ?? ''} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm font-bold text-violet-200">
+                {author.username?.charAt(0)?.toUpperCase()}
+              </div>
+            )}
           </div>
           <div>
             <p className="text-sm font-semibold text-white">@{author.username}</p>
@@ -189,7 +216,6 @@ export function StoryViewer({ storyGroup, viewerId, onClose, onViewed }) {
           <StoryContent
             payload={decrypted?.payload}
             authorPublicKey={author.public_key}
-            viewerId={viewerId}
           />
         )}
       </div>

@@ -5,6 +5,7 @@ import { downloadAndDecryptMedia } from '@/lib/api/media'
 import { decryptInlineMedia } from '@/lib/crypto/media'
 import { formatFileSize } from '@/lib/constants/media'
 import { Spinner } from '@/components/ui/Spinner'
+import { VoicePlayer } from './VoicePlayer'
 
 export function MessageContent({ payload, sharedKey, isOwn }) {
   if (!payload) {
@@ -91,6 +92,27 @@ function MediaAttachment({ payload, sharedKey, isOwn }) {
   const isImage = payload.mime?.startsWith('image/')
   const isVideo = payload.mime?.startsWith('video/')
   const isAudio = payload.mime?.startsWith('audio/')
+  const isVoiceMasked = isAudio && payload.name?.includes('Masque')
+
+  // Voice messages get their own compact layout
+  if (isAudio) {
+    return (
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <svg className="h-3.5 w-3.5 shrink-0 opacity-70" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2a3 3 0 013 3v6a3 3 0 01-6 0V5a3 3 0 013-3zm6.364 8.364a.75.75 0 00-1.06 1.06A5.978 5.978 0 0119 15a6 6 0 01-12 0 5.978 5.978 0 011.696-4.576.75.75 0 00-1.06-1.06A7.478 7.478 0 006 15a7.5 7.5 0 0015 0 7.478 7.478 0 00-2.636-5.636zM11.25 22.5h1.5v-2.502a7.52 7.52 0 01-1.5 0V22.5z" />
+          </svg>
+          <span className="text-xs font-medium opacity-80">Message vocal</span>
+          {isVoiceMasked && (
+            <span className="rounded-full bg-current/10 px-1.5 py-px text-[10px] font-medium opacity-70">
+              anonyme
+            </span>
+          )}
+        </div>
+        {blobUrl && <VoicePlayer blobUrl={blobUrl} isOwn={isOwn} />}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-2">
@@ -119,11 +141,7 @@ function MediaAttachment({ payload, sharedKey, isOwn }) {
         />
       )}
 
-      {isAudio && blobUrl && (
-        <audio src={blobUrl} controls className="w-full max-w-xs" preload="metadata" />
-      )}
-
-      {!isImage && !isVideo && !isAudio && blobUrl && (
+      {!isImage && !isVideo && blobUrl && (
         <a href={blobUrl} download={payload.name} className={`text-sm ${linkClass}`}>
           Télécharger le fichier
         </a>

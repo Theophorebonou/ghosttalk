@@ -15,6 +15,7 @@ export function buildImageStoryPayload({ name, mime, path, inline, data, caption
 export function parseStoryPayload(plaintext) {
   try {
     const data = JSON.parse(plaintext)
+    if (data?.v === 2) return data
     if (data?.t === 'text' && typeof data.b === 'string') return data
     if (data?.t === 'image' && (data.path || (data.inline && data.data))) return data
   } catch {

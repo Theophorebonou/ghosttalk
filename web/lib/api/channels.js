@@ -85,7 +85,7 @@ export async function getChannelMessages(channelId, limit = 50) {
     .from('channel_messages')
     .select(`
       *,
-      profiles (username, display_name, avatar_seed)
+      profiles (username, display_name, avatar_seed, avatar_url)
     `)
     .eq('channel_id', channelId)
     .order('created_at', { ascending: false })

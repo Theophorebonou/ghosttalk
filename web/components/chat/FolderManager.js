@@ -18,32 +18,33 @@ export function FolderManager({ onClose, onFolderCreated }) {
   const [name, setName] = useState('')
   const [icon, setIcon] = useState('📁')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!name.trim()) return
 
     setLoading(true)
+    setError(null)
     try {
       await createFolder(name.trim(), icon)
       onFolderCreated?.()
       onClose()
     } catch (err) {
-      console.error(err)
-      alert('Erreur lors de la création du dossier')
+      setError(err.message ?? 'Erreur lors de la création du dossier')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
-        <h2 className="mb-4 text-lg font-semibold text-zinc-100">Créer un dossier</h2>
-        
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => onClose?.()}>
+      <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="mb-4 text-lg font-semibold text-text">Créer un dossier</h2>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-300">
+            <label className="mb-2 block text-sm font-medium text-text-muted">
               Nom du dossier
             </label>
             <Input
@@ -56,7 +57,7 @@ export function FolderManager({ onClose, onFolderCreated }) {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-300">
+            <label className="mb-2 block text-sm font-medium text-text-muted">
               Icône
             </label>
             <div className="flex flex-wrap gap-2">
@@ -68,7 +69,7 @@ export function FolderManager({ onClose, onFolderCreated }) {
                   className={`h-10 w-10 rounded-lg border-2 text-xl transition ${
                     icon === i
                       ? 'border-primary bg-primary/20'
-                      : 'border-zinc-700 bg-zinc-800 hover:border-zinc-600'
+                      : 'border-border bg-surface-highlight hover:border-text-muted'
                   }`}
                 >
                   {i}
@@ -76,6 +77,8 @@ export function FolderManager({ onClose, onFolderCreated }) {
               ))}
             </div>
           </div>
+
+          {error && <p className="text-sm text-error">{error}</p>}
 
           <div className="flex gap-3 pt-4">
             <Button
@@ -103,7 +106,7 @@ export function FolderList({ folders, onSelectFolder, onDeleteFolder }) {
         <button
           key={folder.id}
           onClick={() => onSelectFolder(folder)}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800"
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-text transition hover:bg-surface-highlight"
         >
           <span className="text-lg">{folder.icon}</span>
           <span className="flex-1 truncate">{folder.name}</span>
@@ -114,7 +117,7 @@ export function FolderList({ folders, onSelectFolder, onDeleteFolder }) {
                 e.stopPropagation()
                 onDeleteFolder(folder.id)
               }}
-              className="px-2 text-zinc-500 hover:text-red-400"
+              className="px-2 text-text-muted transition hover:text-error"
             >
               ✕
             </button>

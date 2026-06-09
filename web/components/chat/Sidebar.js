@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { getConversations, getOrCreateDirectConversation, getConversationById } from '@/lib/api/conversations'
@@ -19,6 +20,7 @@ import { maybeNotifyIncomingMessage } from '@/lib/notifications'
 import { NotificationSetupBanner } from '@/components/settings/NotificationSetupBanner'
 import { StoriesBar } from '@/components/stories/StoriesBar'
 import { GroupIcon } from '@/components/ui/GroupIcon'
+import { UserAvatar } from '@/components/ui/UserAvatar'
 import { formatConversationListTime } from '@/lib/utils/messageDates'
 
 export function Sidebar() {
@@ -334,7 +336,8 @@ export function Sidebar() {
     : 'flex w-full md:w-80'
 
   return (
-    <aside className={`relative z-10 h-full shrink-0 flex-col border-r border-border bg-surface ${sidebarClasses}`}>
+    <>
+      <aside className={`relative z-10 h-full shrink-0 flex-col border-r border-border bg-surface ${sidebarClasses}`}>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border bg-surface-highlight px-4 py-3">
         <h1 className="text-lg font-semibold text-text">GhostTalk</h1>
@@ -408,9 +411,7 @@ export function Sidebar() {
                     }
                   }}
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-semibold">
-                    {res.username.charAt(0).toUpperCase()}
-                  </div>
+                  <UserAvatar username={res.username} avatarUrl={res.avatar_url} size="md" />
                   <span className="truncate font-medium">{res.username}</span>
                 </button>
               ))}
@@ -470,15 +471,17 @@ export function Sidebar() {
                         }`}
                       >
                         {/* Avatar */}
-                        <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
-                          isGroup ? 'bg-primary/20' : 'bg-surface-highlight'
-                        }`}>
+                        <div className="relative shrink-0">
                           {isGroup ? (
-                            <GroupIcon className="h-6 w-6 text-primary" />
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
+                              <GroupIcon className="h-6 w-6 text-primary" />
+                            </div>
                           ) : (
-                            <span className="text-lg font-semibold text-text">
-                              {displayName.charAt(0).toUpperCase()}
-                            </span>
+                            <UserAvatar
+                              username={displayName}
+                              avatarUrl={other?.avatar_url}
+                              size="lg"
+                            />
                           )}
                           {unread && !isActive && (
                             <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-primary animate-pulse-dot" />
@@ -536,9 +539,11 @@ export function Sidebar() {
       <div className="border-t border-border bg-surface-highlight px-4 py-3">
         {profile ? (
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-white">
-              {profile.username.charAt(0).toUpperCase()}
-            </div>
+            <UserAvatar
+              username={profile.username}
+              avatarUrl={profile.avatar_url}
+              size="md"
+            />
             <div className="flex flex-col truncate">
               <span className="truncate text-sm font-semibold text-text">
                 @{profile.username}
@@ -560,20 +565,30 @@ export function Sidebar() {
         )}
       </div>
 
-      {showCreateGroup && <CreateGroupModal onClose={() => setShowCreateGroup(false)} />}
-      {showSettings && (
+      </aside>
+
+      {showCreateGroup && typeof document !== 'undefined' && createPortal(
+        <CreateGroupModal onClose={() => setShowCreateGroup(false)} />,
+        document.body
+      )}
+      {showSettings && typeof document !== 'undefined' && createPortal(
         <AppSettingsModal
           onClose={() => setShowSettings(false)}
           onOpenKeys={() => setShowKeySettings(true)}
-        />
+        />,
+        document.body
       )}
-      {showKeySettings && <KeySettingsModal onClose={() => setShowKeySettings(false)} />}
-      {showFolderManager && (
+      {showKeySettings && typeof document !== 'undefined' && createPortal(
+        <KeySettingsModal onClose={() => setShowKeySettings(false)} />,
+        document.body
+      )}
+      {showFolderManager && typeof document !== 'undefined' && createPortal(
         <FolderManager
           onClose={() => setShowFolderManager(false)}
           onFolderCreated={handleFolderCreated}
-        />
+        />,
+        document.body
       )}
-    </aside>
+    </>
   )
 }

@@ -17,6 +17,8 @@
   --warning: #f7c948;
   --message-out: #005c4b;
   --message-in: #202c33;
+  --message-out-text: #ffffff;
+  --message-in-text: #e9edef;
 }
 
 @theme inline {
@@ -35,6 +37,8 @@
   --color-warning: var(--warning);
   --color-message-out: var(--message-out);
   --color-message-in: var(--message-in);
+  --color-message-out-text: var(--message-out-text);
+  --color-message-in-text: var(--message-in-text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -136,6 +140,11 @@ body {
   height: 0;
   border-right: 8px solid var(--message-in);
   border-top: 8px solid transparent;
+}
+
+@keyframes story-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {

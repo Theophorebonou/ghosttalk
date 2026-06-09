@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { MessageContent } from './MessageContent'
 import { EphemeralBadge } from './EphemeralBadge'
 import { ReadReceiptIcon, getReadStatusForMessage } from './ReadReceiptIcon'
 import { QUICK_REACTIONS } from '@/lib/constants/telegram'
 
-export function MessageBubble({
+export const MessageBubble = memo(function MessageBubble({
   message,
   isOwn,
   senderName,
@@ -65,13 +65,13 @@ export function MessageBubble({
         <div
           className={`relative rounded-lg px-3 py-2 shadow-sm ${
             isOwn
-              ? 'bg-message-out text-white bubble-tail-out'
-              : 'bg-message-in text-text bubble-tail-in'
+              ? 'bg-message-out text-message-out-text bubble-tail-out'
+              : 'bg-message-in text-message-in-text bubble-tail-in'
           }`}
         >
           {/* Forwarded indicator */}
           {message.payload?.forwarded && (
-            <p className="mb-1 text-[11px] italic text-white/70">
+            <p className="mb-1 text-[11px] italic opacity-70">
               Transfere de {message.payload.forwarded.from}
             </p>
           )}
@@ -320,4 +320,12 @@ export function MessageBubble({
       )}
     </div>
   )
-}
+}, (prev, next) => {
+  return prev.message.id === next.message.id
+    && prev.message.message_reactions === next.message.message_reactions
+    && prev.message.message_reads === next.message.message_reads
+    && prev.isOwn === next.isOwn
+    && prev.isGroup === next.isGroup
+    && prev.highlight === next.highlight
+    && prev.sharedKey === next.sharedKey
+})

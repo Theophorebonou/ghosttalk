@@ -2,13 +2,13 @@
 
 export function StoryAvatar({
   username,
+  avatarUrl,
   hasUnviewed,
   isOwn,
   onClick,
   size = 'md',
 }) {
   const dim = size === 'sm' ? 'h-12 w-12' : 'h-14 w-14'
-  const letter = username?.charAt(0)?.toUpperCase() ?? '?'
 
   return (
     <button
@@ -24,10 +24,19 @@ export function StoryAvatar({
             : 'bg-zinc-600'
         }`}
       >
-        <div
-          className={`${dim} flex items-center justify-center rounded-full bg-zinc-800 text-sm font-bold text-violet-300 ring-2 ring-[#2a2838]`}
-        >
-          {letter}
+        <div className={`${dim} overflow-hidden rounded-full ring-2 ring-[#2a2838]`}>
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt={username ?? ''}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-zinc-800 text-sm font-bold text-violet-300">
+              {username?.charAt(0)?.toUpperCase() ?? '?'}
+            </div>
+          )}
         </div>
       </div>
       <span className="max-w-[4.5rem] truncate text-[10px] text-zinc-400">
