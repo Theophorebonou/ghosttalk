@@ -1,10 +1,11 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
-const SUPABASE_URL       = Deno.env.get('SUPABASE_URL')!
+const SUPABASE_URL         = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const VAPID_PUBLIC_KEY   = Deno.env.get('VAPID_PUBLIC_KEY')!
-const VAPID_PRIVATE_KEY  = Deno.env.get('VAPID_PRIVATE_KEY')!
-const VAPID_EMAIL        = Deno.env.get('VAPID_EMAIL') ?? 'mailto:admin@ghosttalk.app'
+const VAPID_PUBLIC_KEY     = Deno.env.get('VAPID_PUBLIC_KEY')!
+const VAPID_PRIVATE_KEY    = Deno.env.get('VAPID_PRIVATE_KEY')!
+const VAPID_EMAIL          = Deno.env.get('VAPID_EMAIL') ?? 'mailto:admin@ghosttalk.app'
+const WEBHOOK_SECRET       = Deno.env.get('WEBHOOK_SECRET')!
 
 // ---------- VAPID helpers ----------
 
@@ -146,6 +147,12 @@ function concat(...arrays: Uint8Array[]): Uint8Array {
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
+
+  // Verify webhook secret from DB trigger
+  const secret = req.headers.get('x-webhook-secret')
+  if (!secret || secret !== WEBHOOK_SECRET) {
+    return new Response('Unauthorized', { status: 401 })
+  }
 
   try {
     const { message_id, conversation_id, sender_id } = await req.json()
