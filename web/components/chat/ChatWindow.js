@@ -811,6 +811,8 @@ export function ChatWindow({ conversationId }) {
           messages={messages}
           onClose={() => setShowSearch(false)}
           onSelectMessage={scrollToMessage}
+          currentUserId={user?.id}
+          otherUserName={otherUser?.username}
         />
       )}
 
