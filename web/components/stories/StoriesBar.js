@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { getActiveStories, subscribeToStories } from '@/lib/api/stories'
 import { useAuth } from '@/hooks/useAuth'
 import { StoryAvatar } from './StoryAvatar'
@@ -136,23 +137,25 @@ export function StoriesBar() {
         </button>
       </div>
 
-      {showCreate && (
+      {showCreate && createPortal(
         <CreateStoryModal
           onClose={() => setShowCreate(false)}
           onPublished={async () => {
             setLoading(true)
             await load()
           }}
-        />
+        />,
+        document.body
       )}
 
-      {viewingGroup && (
+      {viewingGroup && createPortal(
         <StoryViewer
           storyGroup={viewingGroup}
           viewerId={user.id}
           onClose={() => setViewingGroup(null)}
           onViewed={load}
-        />
+        />,
+        document.body
       )}
     </>
   )
