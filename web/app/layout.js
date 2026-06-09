@@ -16,7 +16,20 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: 'GhostTalk',
-  description: 'Messagerie anonyme',
+  description: 'Messagerie chiffrée de bout en bout',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'GhostTalk',
+  },
+  icons: {
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
 }
 
 export const viewport = {
@@ -24,6 +37,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: '#8b5cf6',
 }
 
 export default function RootLayout({ children }) {
