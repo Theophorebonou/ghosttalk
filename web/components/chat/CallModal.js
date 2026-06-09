@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { getCall, updateCallStatus } from '@/lib/api/calls'
-import { CallManager } from '@/lib/webrtc/callManager'
 
 export function CallModal({
   isOpen,
@@ -15,18 +14,18 @@ export function CallModal({
   remoteDisplayName = null,
 }) {
   const callManager = externalCallManager
-  const [localStream, setLocalStream] = useState(null)
+  const [localStream,  setLocalStream]  = useState(null)
   const [remoteStream, setRemoteStream] = useState(null)
-  const [isMuted, setIsMuted] = useState(false)
-  const [isVideoOff, setIsVideoOff] = useState(false)
-  const [callStatus, setCallStatus] = useState(isIncoming ? 'ringing' : 'calling')
+  const [isMuted,      setIsMuted]      = useState(false)
+  const [isVideoOff,   setIsVideoOff]   = useState(false)
+  const [callStatus,   setCallStatus]   = useState(isIncoming ? 'ringing' : 'calling')
   const [callDuration, setCallDuration] = useState(0)
-  const [remoteUser, setRemoteUser] = useState(null)
+  const [remoteUser,   setRemoteUser]   = useState(null)
   const [errorMessage, setErrorMessage] = useState(null)
 
-  const localVideoRef = useRef(null)
+  const localVideoRef  = useRef(null)
   const remoteVideoRef = useRef(null)
-  const endedRef = useRef(false)
+  const endedRef       = useRef(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -34,23 +33,16 @@ export function CallModal({
     endedRef.current = false
     setCallStatus(isIncoming ? 'ringing' : 'calling')
     setErrorMessage(null)
+    setCallDuration(0)
 
-    if (callManager?.localStream) {
-      setLocalStream(callManager.localStream)
-    }
+    if (callManager?.localStream) setLocalStream(callManager.localStream)
 
-    if (remoteDisplayName) {
-      setRemoteUser({ username: remoteDisplayName })
-    }
+    if (remoteDisplayName) setRemoteUser({ username: remoteDisplayName })
 
     if (callId && !String(callId).startsWith('demo-')) {
-      getCall(callId)
-        .then((call) => {
-          if (call) {
-            setRemoteUser(call.callee || call.caller)
-          }
-        })
-        .catch(console.error)
+      getCall(callId).then((call) => {
+        if (call) setRemoteUser(call.callee || call.caller)
+      }).catch(console.error)
     }
 
     if (!callManager) return
@@ -75,13 +67,12 @@ export function CallModal({
     }
 
     callManager.onCallStatusChanged = (status) => {
-      if (status === 'ringing') setCallStatus(isIncoming ? 'ringing' : 'calling')
+      if (status === 'ringing')   setCallStatus(isIncoming ? 'ringing' : 'calling')
       else if (status === 'connected') setCallStatus('connected')
     }
 
     if (isIncoming && callId) {
-      callManager
-        .answerCall(callId, callType)
+      callManager.answerCall(callId, callType)
         .then(() => setLocalStream(callManager.localStream))
         .catch((err) => {
           setErrorMessage(err.message)
@@ -90,29 +81,25 @@ export function CallModal({
     }
 
     return () => {
-      callManager.onRemoteStream = null
-      callManager.onCallEnded = null
-      callManager.onCallError = null
+      callManager.onRemoteStream    = null
+      callManager.onCallEnded       = null
+      callManager.onCallError       = null
       callManager.onCallStatusChanged = null
     }
   }, [isOpen, callId, isIncoming, callType, callManager, remoteDisplayName, onCallEnded, onClose])
 
   useEffect(() => {
-    if (localStream && localVideoRef.current) {
-      localVideoRef.current.srcObject = localStream
-    }
+    if (localStream  && localVideoRef.current)  localVideoRef.current.srcObject  = localStream
   }, [localStream])
 
   useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream
-    }
+    if (remoteStream && remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
   }, [remoteStream])
 
   useEffect(() => {
     if (callStatus !== 'connected') return
-    const interval = setInterval(() => setCallDuration((p) => p + 1), 1000)
-    return () => clearInterval(interval)
+    const id = setInterval(() => setCallDuration((p) => p + 1), 1000)
+    return () => clearInterval(id)
   }, [callStatus])
 
   async function handleEndCall() {
@@ -155,164 +142,274 @@ export function CallModal({
     callManager?.toggleVideo(!next)
   }
 
-  function formatDuration(seconds) {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m}:${s.toString().padStart(2, '0')}`
+  function fmt(s) {
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
   }
 
-  const displayName =
-    remoteUser?.display_name || remoteUser?.username || remoteDisplayName || 'Contact'
+  const displayName = remoteUser?.display_name || remoteUser?.username || remoteDisplayName || 'Contact'
+  const isVideo     = callType === 'video'
 
   if (!isOpen) return null
 
-  const isOutgoingRinging = !isIncoming && (callStatus === 'calling' || callStatus === 'ringing')
+  const isOutgoing   = !isIncoming && (callStatus === 'calling' || callStatus === 'ringing')
   const isConnecting = callStatus === 'connecting'
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-gradient-to-b from-[#1a1828] via-[#12101c] to-black">
-      {/* En-tête */}
-      <div className="flex items-center justify-between px-6 py-4">
-        <div>
-          <p className="text-lg font-semibold text-white">@{displayName}</p>
-          <p className="text-sm text-zinc-400">
-            {callStatus === 'connected'
-              ? formatDuration(callDuration)
-              : callStatus === 'error'
-                ? errorMessage
-                : isOutgoingRinging
-                  ? `Appel ${callType === 'video' ? 'vidéo' : 'audio'} en cours…`
-                  : isIncoming
-                    ? 'Appel entrant'
-                    : 'Connexion…'}
-          </p>
+    <div className="fixed inset-0 z-[100] flex flex-col" style={{ background: 'linear-gradient(160deg, #16122a 0%, #0d0b18 60%, #0a0812 100%)' }}>
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-safe pb-3 pt-5">
+        <div className="flex flex-col">
+          <span className="text-base font-semibold text-white">@{displayName}</span>
+          <span className="mt-0.5 text-xs text-white/50">
+            {callStatus === 'connected'    ? fmt(callDuration)
+            : callStatus === 'error'       ? (errorMessage ?? 'Erreur')
+            : isOutgoing                   ? `Appel ${isVideo ? 'vidéo' : 'audio'}…`
+            : isConnecting                 ? 'Connexion…'
+            : isIncoming                   ? 'Appel entrant'
+            : 'En cours…'}
+          </span>
         </div>
+
+        {/* End / minimise */}
         <button
           type="button"
           onClick={handleEndCall}
-          className="rounded-full px-3 py-1 text-sm text-zinc-400 hover:bg-white/10 hover:text-white"
+          className="rounded-full px-3 py-1 text-xs text-white/40 hover:bg-white/10 hover:text-white/70 transition"
         >
           Fermer
         </button>
       </div>
 
-      {/* Zone principale */}
+      {/* Main area */}
       <div className="relative flex flex-1 flex-col items-center justify-center px-6">
+
+        {/* Error */}
         {callStatus === 'error' && (
-          <div className="text-center">
-            <p className="mb-4 text-5xl">⚠️</p>
-            <p className="text-red-400">{errorMessage || 'Appel impossible'}</p>
-            <p className="mt-2 text-xs text-zinc-500">
-              Vérifiez le micro / la caméra et la migration 019_calls.sql
-            </p>
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-error/10">
+              <svg className="h-10 w-10 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <p className="text-sm text-error">{errorMessage || 'Appel impossible'}</p>
+            <p className="text-xs text-white/30">Vérifiez les permissions micro / caméra</p>
           </div>
         )}
 
-        {(isOutgoingRinging || isConnecting) && (
-          <div className="flex flex-col items-center text-center">
-            <div className="relative mb-8 flex h-28 w-28 items-center justify-center rounded-full bg-violet-600/20">
-              <span className="absolute inset-0 animate-ping rounded-full bg-violet-500/30" />
-              <span className="text-5xl">{callType === 'video' ? '📹' : '📞'}</span>
+        {/* Outgoing ringing */}
+        {(isOutgoing || isConnecting) && (
+          <div className="flex flex-col items-center gap-6 text-center">
+            <div className="relative">
+              <span className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+              <span className="absolute -inset-3 animate-ping rounded-full bg-primary/10 [animation-delay:300ms]" />
+              <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-primary/20 ring-4 ring-primary/10">
+                {isVideo
+                  ? <VideoCamIcon className="h-12 w-12 text-primary/80" />
+                  : <PhoneIcon     className="h-12 w-12 text-primary/80" />
+                }
+              </div>
             </div>
-            <p className="text-xl font-medium text-white">@{displayName}</p>
-            <p className="mt-2 text-zinc-400">
-              {isConnecting ? 'Connexion…' : 'Sonnerie…'}
-            </p>
-            <div className="mt-8 flex items-center gap-2">
-              <span className="h-2 w-2 animate-bounce rounded-full bg-violet-400 [animation-delay:0ms]" />
-              <span className="h-2 w-2 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
-              <span className="h-2 w-2 animate-bounce rounded-full bg-violet-400 [animation-delay:300ms]" />
+            <div>
+              <p className="text-xl font-semibold text-white">@{displayName}</p>
+              <p className="mt-1 text-sm text-white/40">{isConnecting ? 'Connexion…' : 'Sonnerie…'}</p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {[0, 150, 300].map((d) => (
+                <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/60" style={{ animationDelay: `${d}ms` }} />
+              ))}
             </div>
           </div>
         )}
 
+        {/* Incoming ringing */}
         {isIncoming && callStatus === 'ringing' && (
-          <div className="flex flex-col items-center">
-            <div className="mb-8 flex h-28 w-28 items-center justify-center rounded-full bg-green-600/20 text-5xl">
-              📞
+          <div className="flex flex-col items-center gap-8">
+            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white/5 ring-4 ring-white/10">
+              <PhoneIcon className="h-12 w-12 animate-pulse text-white/80" />
             </div>
-            <p className="mb-8 text-xl text-white">@{displayName}</p>
-            <div className="flex gap-6">
+            <div className="text-center">
+              <p className="text-xl font-semibold text-white">@{displayName}</p>
+              <p className="mt-1 text-sm text-white/40">{isVideo ? 'Appel vidéo entrant' : 'Appel audio entrant'}</p>
+            </div>
+            <div className="flex gap-8">
               <button
                 type="button"
                 onClick={handleRejectCall}
-                className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-2xl text-white hover:bg-red-700"
+                className="flex h-16 w-16 flex-col items-center justify-center gap-1"
               >
-                ✕
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-error/90 shadow-lg hover:bg-error transition">
+                  <PhoneOffIcon className="h-7 w-7 text-white" />
+                </span>
               </button>
               <button
                 type="button"
                 onClick={handleAnswer}
-                className="flex h-16 w-16 items-center justify-center rounded-full bg-green-600 text-2xl text-white hover:bg-green-700"
+                className="flex h-16 w-16 flex-col items-center justify-center gap-1"
               >
-                ✓
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-green-600 shadow-lg hover:bg-green-500 transition">
+                  <PhoneIcon className="h-7 w-7 text-white" />
+                </span>
               </button>
             </div>
           </div>
         )}
 
-        {callStatus === 'connected' && (
-          <div className="relative h-full w-full max-w-4xl">
-            {remoteStream && callType === 'video' ? (
+        {/* Connected — video */}
+        {callStatus === 'connected' && isVideo && (
+          <div className="relative h-full w-full max-w-3xl">
+            {/* Remote video (main) */}
+            {remoteStream ? (
               <video
                 ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="h-[50vh] w-full rounded-2xl bg-zinc-900 object-cover"
+                autoPlay playsInline
+                className="h-[55vh] w-full rounded-2xl bg-surface object-cover shadow-xl"
               />
             ) : (
-              <div className="flex h-[40vh] items-center justify-center rounded-2xl bg-zinc-900/80">
-                <p className="text-6xl">🎧</p>
+              <div className="flex h-[55vh] items-center justify-center rounded-2xl bg-surface">
+                <VideoCamIcon className="h-12 w-12 text-text-muted" />
               </div>
             )}
-            {localStream && callType === 'video' && !isVideoOff && (
+            {/* Local pip */}
+            {localStream && !isVideoOff && (
               <video
                 ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="absolute bottom-4 right-4 h-32 w-44 rounded-xl border-2 border-zinc-700 object-cover shadow-xl"
+                autoPlay playsInline muted
+                className="absolute bottom-3 right-3 h-32 w-44 rounded-xl border border-white/10 bg-surface object-cover shadow-xl"
               />
             )}
           </div>
         )}
+
+        {/* Connected — audio only */}
+        {callStatus === 'connected' && !isVideo && (
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-primary/10 ring-4 ring-primary/20">
+              <svg className="h-12 w-12 text-primary/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <p className="text-lg font-semibold text-white">@{displayName}</p>
+            <p className="text-sm text-white/40">{fmt(callDuration)}</p>
+          </div>
+        )}
       </div>
 
-      {/* Contrôles bas */}
-      <div className="flex items-center justify-center gap-6 px-6 py-8">
-        {(isOutgoingRinging || callStatus === 'connected') && (
+      {/* Controls */}
+      <div className="flex items-center justify-center gap-5 px-6 pb-safe pb-10 pt-4">
+        {(isOutgoing || callStatus === 'connected') && (
           <>
-            <button
-              type="button"
+            {/* Mute */}
+            <ControlBtn
+              active={isMuted}
               onClick={toggleMute}
-              className={`flex h-14 w-14 items-center justify-center rounded-full ${
-                isMuted ? 'bg-red-600' : 'bg-zinc-700'
-              } text-xl text-white`}
+              title={isMuted ? 'Activer le micro' : 'Couper le micro'}
             >
-              {isMuted ? '🔇' : '🎤'}
-            </button>
-            {callType === 'video' && (
-              <button
-                type="button"
+              {isMuted
+                ? <MicOffIcon className="h-6 w-6" />
+                : <MicIcon    className="h-6 w-6" />
+              }
+            </ControlBtn>
+
+            {/* Camera (video only) */}
+            {isVideo && (
+              <ControlBtn
+                active={isVideoOff}
                 onClick={toggleVideo}
-                className={`flex h-14 w-14 items-center justify-center rounded-full ${
-                  isVideoOff ? 'bg-red-600' : 'bg-zinc-700'
-                } text-xl text-white`}
+                title={isVideoOff ? 'Activer la caméra' : 'Couper la caméra'}
               >
-                {isVideoOff ? '📷' : '📹'}
-              </button>
+                {isVideoOff
+                  ? <VideoCamOffIcon className="h-6 w-6" />
+                  : <VideoCamIcon    className="h-6 w-6" />
+                }
+              </ControlBtn>
             )}
           </>
         )}
+
+        {/* End call */}
         <button
           type="button"
           onClick={handleEndCall}
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-2xl text-white hover:bg-red-700"
+          className="flex h-16 w-16 items-center justify-center rounded-full bg-error shadow-lg transition hover:bg-error/80"
           title="Raccrocher"
         >
-          📵
+          <PhoneOffIcon className="h-7 w-7 text-white" />
         </button>
       </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function ControlBtn({ active, onClick, title, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`flex h-14 w-14 items-center justify-center rounded-full transition ${
+        active
+          ? 'bg-error/80 text-white hover:bg-error'
+          : 'bg-white/10 text-white/80 hover:bg-white/20'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+// SVG icons
+function PhoneIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+    </svg>
+  )
+}
+
+function PhoneOffIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" />
+    </svg>
+  )
+}
+
+function VideoCamIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
+function VideoCamOffIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
+    </svg>
+  )
+}
+
+function MicIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+    </svg>
+  )
+}
+
+function MicOffIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
+    </svg>
   )
 }
