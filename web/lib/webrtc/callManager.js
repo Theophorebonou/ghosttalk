@@ -1,82 +1,111 @@
 import { supabase } from '@/lib/supabase/client'
 
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  // Public TURN for symmetric NAT (mobile 4G/5G)
+  { urls: 'turn:openrelay.metered.ca:80',  username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+]
+
 export class CallManager {
   constructor() {
-    this.peerConnection = null
-    this.localStream = null
-    this.remoteStream = null
-    this.callId = null
-    this.callType = 'audio'
-    this.isCaller = false
-    this.signalChannel = null
+    this.peerConnection   = null
+    this.localStream      = null
+    this.remoteStream     = null
+    this.callId           = null
+    this.callType         = 'audio'
+    this.isCaller         = false
+    this.signalChannel    = null
+    this._ended           = false
+    this._remoteDescSet   = false
+    this._pendingCandidates = []  // ICE queue before remote desc is set
 
-    this.onRemoteStream = null
-    this.onCallEnded = null
-    this.onCallError = null
-    this.onCallStatusChanged = null
+    this.onRemoteStream        = null
+    this.onCallEnded           = null
+    this.onCallError           = null
+    this.onCallStatusChanged   = null
+  }
+
+  _buildPeerConnection() {
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) this.sendSignal('ice_candidate', event.candidate.toJSON())
+    }
+
+    pc.ontrack = (event) => {
+      this.remoteStream = event.streams[0] ?? event.streams[0]
+      this.onRemoteStream?.(this.remoteStream)
+    }
+
+    // Both state machines — whichever fires first wins
+    const handleConnected = () => {
+      if (!this._ended) this.onCallStatusChanged?.('connected')
+    }
+    const handleDisconnected = () => {
+      if (!this._ended) this.endCall('disconnected')
+    }
+
+    pc.onconnectionstatechange = () => {
+      const s = pc.connectionState
+      if (s === 'connected')                          handleConnected()
+      if (s === 'disconnected' || s === 'failed' || s === 'closed') handleDisconnected()
+    }
+
+    pc.oniceconnectionstatechange = () => {
+      const s = pc.iceConnectionState
+      if (s === 'connected' || s === 'completed')     handleConnected()
+      if (s === 'disconnected' || s === 'failed')     handleDisconnected()
+    }
+
+    return pc
+  }
+
+  _mediaConstraints() {
+    if (this.callType !== 'video') return { audio: true, video: false }
+    return {
+      audio: true,
+      video: {
+        facingMode: 'user',
+        width:  { ideal: 640 },
+        height: { ideal: 480 },
+        frameRate: { ideal: 24 },
+      },
+    }
   }
 
   async startCall(calleeId, callType = 'audio', conversationId = null, existingCallId = null) {
+    this._ended = false
+    this.callType  = callType
+    this.isCaller  = true
+
     try {
-      this.callType = callType
-      this.isCaller = true
+      this.peerConnection = this._buildPeerConnection()
+      this.localStream    = await navigator.mediaDevices.getUserMedia(this._mediaConstraints())
 
-      const rtcConfig = {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-        ],
-      }
-
-      this.peerConnection = new RTCPeerConnection(rtcConfig)
-
-      const constraints = { audio: true, video: callType === 'video' }
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints)
-
-      this.localStream.getTracks().forEach((track) => {
-        this.peerConnection.addTrack(track, this.localStream)
-      })
-
-      this.peerConnection.ontrack = (event) => {
-        this.remoteStream = event.streams[0]
-        this.onRemoteStream?.(this.remoteStream)
-      }
-
-      this.peerConnection.oniceconnectionstatechange = () => {
-        const state = this.peerConnection.iceConnectionState
-        if (state === 'disconnected' || state === 'failed') {
-          this.endCall('disconnected')
-        } else if (state === 'connected') {
-          this.onCallStatusChanged?.('connected')
-        }
-      }
+      this.localStream.getTracks().forEach((t) => this.peerConnection.addTrack(t, this.localStream))
 
       if (existingCallId) {
         this.callId = existingCallId
       } else {
-        const { data: newCallId, error } = await supabase.rpc('create_call', {
-          p_callee_id: calleeId,
-          p_call_type: callType,
-          p_conversation_id: conversationId,
+        const { data, error } = await supabase.rpc('create_call', {
+          p_callee_id: calleeId, p_call_type: callType, p_conversation_id: conversationId,
         })
         if (error) throw error
-        this.callId = newCallId
+        this.callId = data
       }
 
+      // Subscribe BEFORE creating the offer — so answer + ICE from callee are never missed
       this.subscribeToSignals()
-
-      this.peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          this.sendSignal('ice_candidate', event.candidate)
-        }
-      }
 
       const offer = await this.peerConnection.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: callType === 'video',
       })
       await this.peerConnection.setLocalDescription(offer)
-      await this.sendSignal('offer', offer)
+      await this.sendSignal('offer', this.peerConnection.localDescription.toJSON())
 
       this.onCallStatusChanged?.('ringing')
       return this.callId
@@ -87,46 +116,21 @@ export class CallManager {
   }
 
   async answerCall(callId, callType = 'audio') {
+    this._ended = false
+    this.callId   = callId
+    this.callType = callType
+    this.isCaller = false
+    this._remoteDescSet = false
+    this._pendingCandidates = []
+
     try {
-      this.callId = callId
-      this.callType = callType
-      this.isCaller = false
+      this.peerConnection = this._buildPeerConnection()
 
-      const rtcConfig = {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-        ],
-      }
+      // Subscribe BEFORE fetching the offer — so caller's ICE candidates are queued, not lost
+      this.subscribeToSignals()
 
-      this.peerConnection = new RTCPeerConnection(rtcConfig)
-
-      this.peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          this.sendSignal('ice_candidate', event.candidate)
-        }
-      }
-
-      const constraints = { audio: true, video: callType === 'video' }
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints)
-
-      this.localStream.getTracks().forEach((track) => {
-        this.peerConnection.addTrack(track, this.localStream)
-      })
-
-      this.peerConnection.ontrack = (event) => {
-        this.remoteStream = event.streams[0]
-        this.onRemoteStream?.(this.remoteStream)
-      }
-
-      this.peerConnection.oniceconnectionstatechange = () => {
-        const state = this.peerConnection.iceConnectionState
-        if (state === 'disconnected' || state === 'failed') {
-          this.endCall('disconnected')
-        } else if (state === 'connected') {
-          this.onCallStatusChanged?.('connected')
-        }
-      }
+      this.localStream = await navigator.mediaDevices.getUserMedia(this._mediaConstraints())
+      this.localStream.getTracks().forEach((t) => this.peerConnection.addTrack(t, this.localStream))
 
       const { data: signals } = await supabase
         .from('call_signals')
@@ -136,22 +140,23 @@ export class CallManager {
         .order('created_at', { ascending: false })
         .limit(1)
 
-      if (!signals?.length) {
-        throw new Error('Offre WebRTC introuvable')
-      }
+      if (!signals?.length) throw new Error('Offre WebRTC introuvable')
 
       await this.peerConnection.setRemoteDescription(signals[0].signal_data)
+      this._remoteDescSet = true
+
+      // Drain queued ICE candidates
+      for (const c of this._pendingCandidates) {
+        await this._addIce(c)
+      }
+      this._pendingCandidates = []
 
       const answer = await this.peerConnection.createAnswer()
       await this.peerConnection.setLocalDescription(answer)
-      await this.sendSignal('answer', answer)
+      await this.sendSignal('answer', this.peerConnection.localDescription.toJSON())
 
-      await supabase.rpc('update_call_status', {
-        p_call_id: callId,
-        p_status: 'connected',
-      })
+      await supabase.rpc('update_call_status', { p_call_id: callId, p_status: 'connected' })
 
-      this.subscribeToSignals()
       this.onCallStatusChanged?.('connected')
       return answer
     } catch (err) {
@@ -160,28 +165,19 @@ export class CallManager {
     }
   }
 
-  async setRemoteAnswer(answer) {
-    if (!this.peerConnection) throw new Error('No peer connection')
-    await this.peerConnection.setRemoteDescription(answer)
-  }
-
-  async addIceCandidate(candidate) {
+  async _addIce(candidate) {
     if (!this.peerConnection) return
     try {
-      await this.peerConnection.addIceCandidate(candidate)
+      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
     } catch (err) {
-      console.warn('ICE candidate:', err)
+      console.warn('addIceCandidate:', err)
     }
   }
 
   async sendSignal(signalType, signalData) {
     if (!this.callId || String(this.callId).startsWith('demo-')) return
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+    const { data: { session } } = await supabase.auth.getSession()
     if (!session?.user) return
-
     await supabase.from('call_signals').insert({
       call_id: this.callId,
       sender_id: session.user.id,
@@ -192,59 +188,51 @@ export class CallManager {
 
   subscribeToSignals() {
     if (!this.callId || String(this.callId).startsWith('demo-')) return
+    this.signalChannel?.unsubscribe()
 
-    if (this.signalChannel) {
-      this.signalChannel.unsubscribe()
-    }
-
-    this.signalChannel = supabase.channel(`call_signals:${this.callId}`)
-
-    this.signalChannel.on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'call_signals',
+    this.signalChannel = supabase
+      .channel(`call_signals:${this.callId}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'call_signals',
         filter: `call_id=eq.${this.callId}`,
-      },
-      async (payload) => {
+      }, async (payload) => {
         const signal = payload.new
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
+        const { data: { session } } = await supabase.auth.getSession()
         if (signal.sender_id === session?.user?.id) return
 
         try {
           if (signal.signal_type === 'answer' && this.isCaller) {
-            await this.setRemoteAnswer(signal.signal_data)
+            await this.peerConnection?.setRemoteDescription(signal.signal_data)
+            this._remoteDescSet = true
+            for (const c of this._pendingCandidates) await this._addIce(c)
+            this._pendingCandidates = []
             this.onCallStatusChanged?.('connected')
-          } else if (signal.signal_type === 'offer' && !this.isCaller) {
-            await this.peerConnection.setRemoteDescription(signal.signal_data)
           } else if (signal.signal_type === 'ice_candidate') {
-            await this.addIceCandidate(signal.signal_data)
+            if (this._remoteDescSet) {
+              await this._addIce(signal.signal_data)
+            } else {
+              this._pendingCandidates.push(signal.signal_data)
+            }
           }
         } catch (err) {
           console.error('Signal handling error:', err)
         }
-      }
-    )
-
-    this.signalChannel.subscribe()
+      })
+      .subscribe()
   }
 
   toggleAudio(enabled) {
-    this.localStream?.getAudioTracks().forEach((t) => {
-      t.enabled = enabled
-    })
+    this.localStream?.getAudioTracks().forEach((t) => { t.enabled = enabled })
   }
 
   toggleVideo(enabled) {
-    this.localStream?.getVideoTracks().forEach((t) => {
-      t.enabled = enabled
-    })
+    this.localStream?.getVideoTracks().forEach((t) => { t.enabled = enabled })
   }
 
   async endCall(reason = 'ended') {
+    if (this._ended) return
+    this._ended = true
+
     if (this.callId && !String(this.callId).startsWith('demo-')) {
       try {
         await supabase.rpc('update_call_status', {
@@ -258,23 +246,18 @@ export class CallManager {
 
     this.localStream?.getTracks().forEach((t) => t.stop())
     this.localStream = null
-
     this.peerConnection?.close()
     this.peerConnection = null
-
     this.signalChannel?.unsubscribe()
     this.signalChannel = null
-
-    this.remoteStream = null
-    const endedId = this.callId
+    this.remoteStream  = null
+    const id = this.callId
     this.callId = null
     this.onCallEnded?.(reason)
-    return endedId
+    return id
   }
 
-  isCallActive() {
-    return !!this.peerConnection
-  }
+  isCallActive() { return !!this.peerConnection }
 }
 
 export function isWebRTCSupported() {
