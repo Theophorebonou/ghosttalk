@@ -48,6 +48,10 @@ export function buildMediaPayload({
   return JSON.stringify({ ...base, path })
 }
 
+export function buildStickerPayload(emoji) {
+  return JSON.stringify({ t: 'sticker', emoji })
+}
+
 export function parseMessagePayload(plaintext) {
   if (!plaintext || plaintext.startsWith('[')) {
     return { t: 'error', message: plaintext || 'Message indéchiffrable' }
@@ -62,6 +66,9 @@ export function parseMessagePayload(plaintext) {
       if (data.ephemeral) out.ephemeral = data.ephemeral
       if (data.forwarded) out.forwarded = data.forwarded
       return out
+    }
+    if (data?.t === 'sticker' && typeof data.emoji === 'string') {
+      return { t: 'sticker', emoji: data.emoji }
     }
     if (data?.t === 'media' && data.name && (data.path || (data.inline && data.data))) {
       const out = { ...data }

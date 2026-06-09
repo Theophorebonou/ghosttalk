@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { CreatePollModal } from './CreatePollModal'
 import { ScheduleMessageModal } from './ScheduleMessageModal'
-import { StickerPicker } from './StickerPicker'
+import { EmojiStickerPicker } from './EmojiStickerPicker'
 import { ACCEPTED_MEDIA } from '@/lib/constants/media'
 import {
   EPHEMERAL_AFTER_READ,
@@ -75,8 +75,11 @@ export function ChatInput({
   const [showPollModal, setShowPollModal] = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [showStickerPicker, setShowStickerPicker] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
 
   const fileRef = useRef(null)
+  const inputRef = useRef(null)
+  const emojiBtnRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
@@ -304,9 +307,23 @@ export function ChatInput({
     }
   }
 
-  function handleStickerSelect(sticker) {
+  function handleStickerSelect(emoji) {
     if (!onSendSticker) return
-    onSendSticker(sticker)
+    onSendSticker(emoji)
+  }
+
+  function handleEmojiInsert(emoji) {
+    const input = inputRef.current
+    if (!input) { setText((p) => p + emoji); return }
+    const start = input.selectionStart ?? text.length
+    const end   = input.selectionEnd   ?? text.length
+    const next  = text.slice(0, start) + emoji + text.slice(end)
+    setText(next)
+    if (conversationId && !editingMessage) setDraft(conversationId, next)
+    requestAnimationFrame(() => {
+      input.focus()
+      input.setSelectionRange(start + emoji.length, start + emoji.length)
+    })
   }
 
   useEffect(() => {
@@ -580,9 +597,32 @@ export function ChatInput({
               </svg>
             </button>
 
+            {/* Emoji / Sticker button */}
+            <div className="relative shrink-0">
+              <button
+                ref={emojiBtnRef}
+                type="button"
+                disabled={disabled || loading}
+                onClick={() => setShowEmojiPicker((p) => !p)}
+                className={`flex h-10 w-10 items-center justify-center rounded-full text-xl transition hover:bg-surface disabled:opacity-40 ${showEmojiPicker ? 'text-primary' : 'text-text-muted hover:text-text'}`}
+                title="Emoji / Stickers"
+              >
+                😊
+              </button>
+              {showEmojiPicker && (
+                <EmojiStickerPicker
+                  anchorRef={emojiBtnRef}
+                  onEmojiSelect={handleEmojiInsert}
+                  onStickerSelect={handleStickerSelect}
+                  onClose={() => setShowEmojiPicker(false)}
+                />
+              )}
+            </div>
+
             {/* Text input */}
             <div className="relative flex-1">
               <input
+                ref={inputRef}
                 value={text}
                 onChange={(e) => {
                   const v = e.target.value
@@ -652,12 +692,6 @@ export function ChatInput({
         />
       )}
 
-      {showStickerPicker && (
-        <StickerPicker
-          onSelect={handleStickerSelect}
-          onClose={() => setShowStickerPicker(false)}
-        />
-      )}
     </>
   )
 }

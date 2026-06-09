@@ -25,7 +25,7 @@ import { CallManager, isWebRTCSupported } from '@/lib/webrtc/callManager'
 import { deriveSharedKey, encryptMessage } from '@/lib/crypto/e2e'
 import { bufToBase64, importStoredKeyPair } from '@/lib/crypto/keys'
 import { INLINE_MEDIA_MAX } from '@/lib/crypto/media'
-import { buildMediaPayload, buildTextPayload } from '@/lib/crypto/messagePayload'
+import { buildMediaPayload, buildStickerPayload, buildTextPayload } from '@/lib/crypto/messagePayload'
 import { MAX_MEDIA_BYTES } from '@/lib/constants/media'
 import { getHideReadReceipts } from '@/lib/constants/wellbeing'
 import { decryptChatMessage } from '@/lib/messages/decryptChatMessage'
@@ -552,6 +552,15 @@ export function ChatWindow({ conversationId }) {
     setTimeout(scrollToBottom, 100)
   }
 
+  async function handleSendSticker(emoji) {
+    if (!sharedKey || !user) return
+    const ciphertext = await encryptMessage(sharedKey, buildStickerPayload(emoji))
+    const sent = await sendMessage(conversationId, user.id, ciphertext)
+    const decrypted = await decryptChatMessage(sharedKey, sent)
+    setMessages((prev) => [...prev, decrypted])
+    setTimeout(scrollToBottom, 100)
+  }
+
   async function handleSendFile(file, ephemeralMode = null) {
     if (!sharedKey || !user) return
 
@@ -956,6 +965,7 @@ export function ChatWindow({ conversationId }) {
         onCancelEdit={() => setEditingMessage(null)}
         onTyping={broadcastTyping}
         onStartCall={handleStartCall}
+        onSendSticker={handleSendSticker}
       />
     </div>
   )

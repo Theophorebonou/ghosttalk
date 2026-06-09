@@ -20,6 +20,14 @@ export function MessageContent({ payload, sharedKey, isOwn }) {
     return <p className="whitespace-pre-wrap break-words text-sm">{payload.b}</p>
   }
 
+  if (payload.t === 'sticker') {
+    return (
+      <span className="block select-none text-5xl leading-none" role="img">
+        {payload.emoji}
+      </span>
+    )
+  }
+
   if (payload.t === 'media') {
     return <MediaAttachment payload={payload} sharedKey={sharedKey} isOwn={isOwn} />
   }
