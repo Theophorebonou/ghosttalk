@@ -38,25 +38,18 @@ export async function unpinMessage(conversationId) {
   if (error) throw error
 }
 
-export async function getHiddenMessageIds(conversationId) {
+export async function getHiddenMessageIds() {
   const {
     data: { session },
   } = await supabase.auth.getSession()
   if (!session?.user) return new Set()
 
-  const { data: msgs } = await supabase
-    .from('messages')
-    .select('id')
-    .eq('conversation_id', conversationId)
-
-  if (!msgs?.length) return new Set()
-
-  const ids = msgs.map((m) => m.id)
+  // Une seule requête sur la petite table message_hidden (scopée RLS) :
+  // le croisement avec la conversation se fait côté client au filtrage.
   const { data: hidden, error } = await supabase
     .from('message_hidden')
     .select('message_id')
     .eq('user_id', session.user.id)
-    .in('message_id', ids)
 
   if (error) {
     if (error.code === '42P01') return new Set()

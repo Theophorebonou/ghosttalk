@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { getProfileByUserId } from '@/lib/api/profiles'
+import { clearMessageCache } from '@/lib/cache/messageCache'
 import { clearStoredKeyPair, getOrCreateKeyPair } from '@/lib/crypto/keys'
 import { supabase } from '@/lib/supabase/client'
 
@@ -95,6 +96,7 @@ export function AuthProvider({ children }) {
     setAuthError(null)
     await supabase.auth.signOut()
     clearStoredKeyPair()
+    clearMessageCache()
     setUser(null)
     setProfile(null)
   }, [])

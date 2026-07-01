@@ -36,11 +36,14 @@ export function MessageContent({ payload, sharedKey, isOwn }) {
 }
 
 function MediaAttachment({ payload, sharedKey, isOwn }) {
-  const [blobUrl, setBlobUrl] = useState(null)
-  const [loading, setLoading] = useState(true)
+  // Préview locale (envoi optimiste) : affichée immédiatement, sans déchiffrement
+  const [blobUrl, setBlobUrl] = useState(payload.localUrl ?? null)
+  const [loading, setLoading] = useState(!payload.localUrl)
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (payload.localUrl) return
+
     let objectUrl
     let cancelled = false
 

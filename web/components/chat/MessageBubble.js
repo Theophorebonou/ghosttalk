@@ -19,6 +19,7 @@ export const MessageBubble = memo(function MessageBubble({
   onForward,
   onPin,
   onReact,
+  onRetry,
   onScrollToReply,
   currentUserId,
   otherParticipantIds,
@@ -67,7 +68,7 @@ export const MessageBubble = memo(function MessageBubble({
             isOwn
               ? 'bg-message-out text-message-out-text bubble-tail-out'
               : 'bg-message-in text-message-in-text bubble-tail-in'
-          }`}
+          } ${message.pending ? 'opacity-70' : ''} ${message.failed ? 'opacity-80 ring-1 ring-error/60' : ''}`}
         >
           {/* Forwarded indicator */}
           {message.payload?.forwarded && (
@@ -136,13 +137,30 @@ export const MessageBubble = memo(function MessageBubble({
                 )}
               />
             )}
-            {isOwn && isGroup && message.message_reads?.length > 0 && (
+            {isOwn && isGroup && message.pending && (
+              <ReadReceiptIcon status="pending" />
+            )}
+            {isOwn && isGroup && !message.pending && message.message_reads?.length > 0 && (
               <span className="text-[10px] text-white/60">
                 Lu {message.message_reads.length}
               </span>
             )}
           </div>
         </div>
+
+        {/* Échec d'envoi : proposer de réessayer */}
+        {message.failed && (
+          <button
+            type="button"
+            onClick={() => onRetry?.(message)}
+            className="mt-1 flex items-center gap-1 text-xs text-error hover:underline"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0113.66-3.66L20 7M20 15a8 8 0 01-13.66 3.66L4 17" />
+            </svg>
+            Échec de l&apos;envoi — Réessayer
+          </button>
+        )}
 
         {/* Reactions */}
         {Object.keys(reactionGroups).length > 0 && (
@@ -322,6 +340,10 @@ export const MessageBubble = memo(function MessageBubble({
   )
 }, (prev, next) => {
   return prev.message.id === next.message.id
+    && prev.message.payload === next.message.payload
+    && prev.message.edited_at === next.message.edited_at
+    && prev.message.pending === next.message.pending
+    && prev.message.failed === next.message.failed
     && prev.message.message_reactions === next.message.message_reactions
     && prev.message.message_reads === next.message.message_reads
     && prev.isOwn === next.isOwn

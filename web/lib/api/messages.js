@@ -17,42 +17,52 @@ const MESSAGE_SELECT = `
   )
 `
 
-export async function getMessages(conversationId) {
-  try {
-    const { error } = await supabase.rpc('purge_expired_messages', {
-      conv_id: conversationId,
-    })
-    if (error) console.warn('purge_expired_messages:', error.message)
-  } catch {
-    /* migration 011 */
+export const MESSAGES_PAGE_SIZE = 50
+
+async function fetchMessagesPage(conversationId, { before = null, limit = MESSAGES_PAGE_SIZE } = {}) {
+  function buildQuery(select) {
+    let query = supabase
+      .from('messages')
+      .select(select)
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (before) query = query.lt('created_at', before)
+    return query
   }
 
-  const hidden = await getHiddenMessageIds(conversationId)
-
-  let data
-  let error
-
-  const result = await supabase
-    .from('messages')
-    .select(MESSAGE_SELECT)
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true })
-
-  data = result.data
-  error = result.error
+  let { data, error } = await buildQuery(MESSAGE_SELECT)
 
   if (error?.message?.includes('message_reactions')) {
-    const fallback = await supabase
-      .from('messages')
-      .select(`*, message_reads (user_id, read_at)`)
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+    const fallback = await buildQuery(`*, message_reads (user_id, read_at)`)
     data = fallback.data
     error = fallback.error
   }
 
   if (error) throw error
-  return (data ?? []).filter((m) => !hidden.has(m.id))
+  // Requête en desc pour paginer depuis les plus récents ; on remet en ordre chronologique
+  return (data ?? []).reverse()
+}
+
+export async function getMessages(conversationId, { limit = MESSAGES_PAGE_SIZE } = {}) {
+  // Purge en arrière-plan : ne bloque pas l'affichage (l'interval de ChatWindow purge aussi)
+  purgeExpiredInConversation(conversationId)
+
+  const [hidden, data] = await Promise.all([
+    getHiddenMessageIds(),
+    fetchMessagesPage(conversationId, { limit }),
+  ])
+
+  return data.filter((m) => !hidden.has(m.id))
+}
+
+export async function getOlderMessages(conversationId, beforeCreatedAt, limit = MESSAGES_PAGE_SIZE) {
+  const [hidden, data] = await Promise.all([
+    getHiddenMessageIds(),
+    fetchMessagesPage(conversationId, { before: beforeCreatedAt, limit }),
+  ])
+
+  return data.filter((m) => !hidden.has(m.id))
 }
 
 export async function sendMessage(conversationId, senderId, ciphertext, options = {}) {

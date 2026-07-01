@@ -4,9 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { getActiveStories, subscribeToStories } from '@/lib/api/stories'
 import { useAuth } from '@/hooks/useAuth'
+import dynamic from 'next/dynamic'
 import { StoryAvatar } from './StoryAvatar'
-import { CreateStoryModal } from './CreateStoryModal'
 import { StoryViewer } from './StoryViewer'
+
+// Chargée à la demande : hors du bundle initial
+const CreateStoryModal = dynamic(
+  () => import('./CreateStoryModal').then((m) => m.CreateStoryModal),
+  { ssr: false }
+)
 
 function groupStoriesByAuthor(stories, currentUserId) {
   const groups = new Map()

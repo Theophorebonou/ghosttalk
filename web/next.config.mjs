@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
+  // Mémoïsation automatique des composants (useMemo/useCallback implicites)
+  reactCompiler: true,
 };
 
 export default nextConfig;

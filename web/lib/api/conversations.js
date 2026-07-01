@@ -25,6 +25,7 @@ export async function getConversations() {
         )
       )
     `)
+    .order('last_message_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
 
   if (error) throw error

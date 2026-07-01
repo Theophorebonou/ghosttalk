@@ -1,11 +1,23 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
-import { CreatePollModal } from './CreatePollModal'
-import { ScheduleMessageModal } from './ScheduleMessageModal'
-import { EmojiStickerPicker } from './EmojiStickerPicker'
+
+// Chargés à la demande : hors du bundle initial
+const CreatePollModal = dynamic(
+  () => import('./CreatePollModal').then((m) => m.CreatePollModal),
+  { ssr: false }
+)
+const ScheduleMessageModal = dynamic(
+  () => import('./ScheduleMessageModal').then((m) => m.ScheduleMessageModal),
+  { ssr: false }
+)
+const EmojiStickerPicker = dynamic(
+  () => import('./EmojiStickerPicker').then((m) => m.EmojiStickerPicker),
+  { ssr: false }
+)
 import { ACCEPTED_MEDIA } from '@/lib/constants/media'
 import {
   EPHEMERAL_AFTER_READ,

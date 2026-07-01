@@ -13,9 +13,25 @@ import { useAuth } from '@/hooks/useAuth'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
-import { CreateGroupModal } from './CreateGroupModal'
-import { KeySettingsModal } from '@/components/auth/KeySettingsModal'
-import { AppSettingsModal } from '@/components/settings/AppSettingsModal'
+import dynamic from 'next/dynamic'
+
+// Modales chargées à la demande : hors du bundle initial
+const CreateGroupModal = dynamic(
+  () => import('./CreateGroupModal').then((m) => m.CreateGroupModal),
+  { ssr: false }
+)
+const KeySettingsModal = dynamic(
+  () => import('@/components/auth/KeySettingsModal').then((m) => m.KeySettingsModal),
+  { ssr: false }
+)
+const AppSettingsModal = dynamic(
+  () => import('@/components/settings/AppSettingsModal').then((m) => m.AppSettingsModal),
+  { ssr: false }
+)
+const FolderManager = dynamic(
+  () => import('./FolderManager').then((m) => m.FolderManager),
+  { ssr: false }
+)
 import { maybeNotifyIncomingMessage } from '@/lib/notifications'
 import { NotificationSetupBanner } from '@/components/settings/NotificationSetupBanner'
 import { StoriesBar } from '@/components/stories/StoriesBar'
@@ -211,17 +227,27 @@ export function Sidebar() {
       .subscribe()
       
     // Subscribe to conversation updates (e.g. pinned_message nullified during clear history)
+    // Mise à jour locale depuis le payload : pas de refetch réseau, et on ignore
+    // les conversations qui ne nous concernent pas.
     const convChannel = supabase.channel('conversations-notifications')
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'conversations' },
-        async (payload) => {
-          try {
-            const fetched = await getConversationById(payload.new.id)
-            setConversations(prev => prev.map(c => c.id === fetched.id ? fetched : c))
-          } catch (err) {
-            console.error('Failed to reload conversation for sidebar', err)
-          }
+        (payload) => {
+          const updated = payload.new
+          setConversations(prev => {
+            if (!prev.some(c => c.id === updated.id)) return prev
+            return prev.map(c =>
+              c.id === updated.id
+                ? {
+                    ...c,
+                    name: updated.name ?? c.name,
+                    last_message_at: updated.last_message_at ?? c.last_message_at,
+                    pinned_message_id: updated.pinned_message_id,
+                  }
+                : c
+            )
+          })
         }
       )
       .subscribe()

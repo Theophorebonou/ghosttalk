@@ -1,14 +1,17 @@
 'use client'
 
-import { Fragment, useCallback, useEffect, useState, useRef } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { getConversationById, markAsRead } from '@/lib/api/conversations'
 import {
   getMessages,
+  getOlderMessages,
   sendMessage,
   subscribeToMessages,
   purgeExpiredInConversation,
+  MESSAGES_PAGE_SIZE,
 } from '@/lib/api/messages'
+import { getCachedMessages, setCachedMessages } from '@/lib/cache/messageCache'
 import { markMessagesRead, subscribeToMessageReads } from '@/lib/api/messageReads'
 import {
   editMessageCiphertext,
@@ -25,16 +28,21 @@ import { CallManager, isWebRTCSupported } from '@/lib/webrtc/callManager'
 import { deriveSharedKey, encryptMessage } from '@/lib/crypto/e2e'
 import { bufToBase64, importStoredKeyPair } from '@/lib/crypto/keys'
 import { INLINE_MEDIA_MAX } from '@/lib/crypto/media'
-import { buildMediaPayload, buildStickerPayload, buildTextPayload } from '@/lib/crypto/messagePayload'
+import {
+  buildMediaPayload,
+  buildStickerPayload,
+  buildTextPayload,
+  parseMessagePayload,
+} from '@/lib/crypto/messagePayload'
 import { MAX_MEDIA_BYTES } from '@/lib/constants/media'
 import { getHideReadReceipts } from '@/lib/constants/wellbeing'
 import { decryptChatMessage } from '@/lib/messages/decryptChatMessage'
 import { buildEphemeralSendOptions } from '@/lib/messages/ephemeral'
 import { useAuth } from '@/hooks/useAuth'
 import { useTypingIndicator } from '@/hooks/useTypingIndicator'
+import dynamic from 'next/dynamic'
 import { Spinner } from '@/components/ui/Spinner'
 import { ChatInput } from './ChatInput'
-import { ManageGroupMembersModal } from './ManageGroupMembersModal'
 import { MessageBubble } from './MessageBubble'
 import { MessageDateSeparator } from './MessageDateSeparator'
 import { isSameCalendarDay, formatLastSeen } from '@/lib/utils/messageDates'
@@ -42,10 +50,24 @@ import { WellbeingBar } from './WellbeingBar'
 import { GroupIcon } from '@/components/ui/GroupIcon'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { ChatHeaderMenu } from './ChatHeaderMenu'
-import { ChatSearchPanel } from './ChatSearchPanel'
-import { ForwardMessageModal } from './ForwardMessageModal'
 import { PinnedMessageBar } from './PinnedMessageBar'
-import { CallModal } from './CallModal'
+
+// Chargés à la demande : hors du bundle initial de la conversation
+const ManageGroupMembersModal = dynamic(
+  () => import('./ManageGroupMembersModal').then((m) => m.ManageGroupMembersModal),
+  { ssr: false }
+)
+const ForwardMessageModal = dynamic(
+  () => import('./ForwardMessageModal').then((m) => m.ForwardMessageModal),
+  { ssr: false }
+)
+const CallModal = dynamic(() => import('./CallModal').then((m) => m.CallModal), {
+  ssr: false,
+})
+const ChatSearchPanel = dynamic(
+  () => import('./ChatSearchPanel').then((m) => m.ChatSearchPanel),
+  { ssr: false }
+)
 import {
   consumePendingStoryReply,
   setPendingStoryReply,
@@ -78,11 +100,25 @@ export function ChatWindow({ conversationId }) {
   const [incomingCall, setIncomingCall] = useState(null)
   const [callManager] = useState(() => new CallManager())
 
+  const [loadingOlder, setLoadingOlder] = useState(false)
+
   const messagesEndRef = useRef(null)
+  const scrollContainerRef = useRef(null)
+  const topSentinelRef = useRef(null)
   const messageRefs = useRef({})
   const markedReadRef = useRef(new Set())
   const afterReadTimersRef = useRef({})
   const refreshMessagesRef = useRef(null)
+  const loadOlderRef = useRef(null)
+  const loadingOlderRef = useRef(false)
+  const hasMoreRef = useRef(true)
+  const scrollAdjustRef = useRef(null)
+
+  // Miroirs lus par les callbacks realtime sans résouscription
+  const messagesRef = useRef([])
+  messagesRef.current = messages
+  const blockedUserIdsRef = useRef(blockedUserIds)
+  blockedUserIdsRef.current = blockedUserIds
 
   const { typingLabel, broadcastTyping } = useTypingIndicator(
     conversationId,
@@ -171,8 +207,14 @@ export function ChatWindow({ conversationId }) {
     return conv
   }
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const scrollToBottom = (behavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior })
+  }
+
+  function isNearBottom() {
+    const el = scrollContainerRef.current
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 150
   }
 
   async function handleStartCall(callType = 'audio') {
@@ -240,9 +282,10 @@ export function ChatWindow({ conversationId }) {
     if (!sharedKey) return
     const history = await getMessages(conversationId)
     const decrypted = await Promise.all(history.map((m) => decryptChatMessage(sharedKey, m)))
-    const filtered = decrypted.filter((m) => !blockedUserIds.has(m.sender_id))
+    const filtered = decrypted.filter((m) => !blockedUserIdsRef.current.has(m.sender_id))
     setMessages(filtered)
-  }, [sharedKey, conversationId, blockedUserIds])
+    hasMoreRef.current = history.length >= MESSAGES_PAGE_SIZE
+  }, [sharedKey, conversationId])
 
   refreshMessagesRef.current = refreshMessages
 
@@ -253,6 +296,10 @@ export function ChatWindow({ conversationId }) {
     async function init() {
       try {
         setLoading(true)
+        // Invalide la clé de l'ancienne conversation : l'effect historique
+        // ne doit jamais déchiffrer la nouvelle conversation avec l'ancienne clé
+        setSharedKey(null)
+        setMessages([])
         const conv = await getConversationById(conversationId)
         if (!isMounted) return
 
@@ -370,122 +417,236 @@ export function ChatWindow({ conversationId }) {
     return () => clearInterval(id)
   }, [conversationId, sharedKey])
 
+  // Historique : cache mémoire rendu immédiatement, données fraîches en arrière-plan (SWR)
   useEffect(() => {
     if (!sharedKey || !conversationId || !user) return
 
-    let isMounted = true
-    let msgChannel = null
-    let readChannel = null
-    let reactChannel = null
+    let cancelled = false
+    hasMoreRef.current = true
 
-    async function fetchAndDecrypt() {
+    const cached = getCachedMessages(conversationId)
+    if (cached) {
+      setMessages(cached)
+      setLoading(false)
+      requestAnimationFrame(() => scrollToBottom('auto'))
+    }
+
+    async function fetchHistory() {
       try {
         const history = await getMessages(conversationId)
-        if (!isMounted) return
+        if (cancelled) return
 
         const decryptedHistory = await Promise.all(
           history.map((msg) => decryptChatMessage(sharedKey, msg))
         )
-        if (!isMounted) return
-        setMessages(decryptedHistory)
+        if (cancelled) return
+
+        const filtered = decryptedHistory.filter(
+          (m) => !blockedUserIdsRef.current.has(m.sender_id)
+        )
+        hasMoreRef.current = history.length >= MESSAGES_PAGE_SIZE
+        setMessages(filtered)
         setLoading(false)
         markedReadRef.current = new Set()
-        setTimeout(scrollToBottom, 100)
-
-        msgChannel = subscribeToMessages(conversationId, {
-          onInsert: async (newMsg) => {
-            const decrypted = await decryptChatMessage(sharedKey, newMsg)
-            // Ne pas afficher les messages des utilisateurs bloqués
-            if (blockedUserIds.has(newMsg.sender_id)) return
-            
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === decrypted.id)) return prev
-              return [...prev, decrypted]
-            })
-            setTimeout(scrollToBottom, 100)
-
-            if (newMsg.sender_id !== user.id) {
-              markAsRead(conversationId).catch(console.error)
-            }
-          },
-          onUpdate: async (updated) => {
-            const decrypted = await decryptChatMessage(sharedKey, updated)
-            setMessages((prev) =>
-              prev.map((m) => (m.id === decrypted.id ? decrypted : m))
-            )
-          },
-          onDelete: (old) => {
-            if (!old?.id) return
-            setMessages((prev) => prev.filter((m) => m.id !== old.id))
-          },
-        })
-
-        readChannel = subscribeToMessageReads(conversationId, (readRow) => {
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== readRow.message_id) return m
-              const existing = m.message_reads || []
-              if (existing.some((r) => r.user_id === readRow.user_id)) return m
-              return {
-                ...m,
-                message_reads: [
-                  ...existing,
-                  { user_id: readRow.user_id, read_at: readRow.read_at },
-                ],
-              }
-            })
-          )
-        })
-
-        reactChannel = subscribeToReactions(conversationId, async (payload) => {
-          if (!isMounted) return
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const { message_id, user_id, emoji } = payload.new
-            setMessages((prev) =>
-              prev.map((m) => {
-                if (m.id !== message_id) return m
-                const existing = m.message_reactions || []
-                const idx = existing.findIndex((r) => r.user_id === user_id)
-                let reactions
-                if (idx >= 0) {
-                  reactions = existing.map((r) =>
-                    r.user_id === user_id ? { ...r, emoji } : r
-                  )
-                } else {
-                  reactions = [...existing, { user_id, emoji }]
-                }
-                return { ...m, message_reactions: reactions }
-              })
-            )
-          } else if (payload.eventType === 'DELETE') {
-            const { message_id, user_id } = payload.old
-            setMessages((prev) =>
-              prev.map((m) => {
-                if (m.id !== message_id) return m
-                return {
-                  ...m,
-                  message_reactions: (m.message_reactions || []).filter(
-                    (r) => r.user_id !== user_id
-                  ),
-                }
-              })
-            )
-          }
-        })
+        requestAnimationFrame(() => scrollToBottom('auto'))
       } catch (err) {
-        if (isMounted) setError(err.message)
+        if (!cancelled) setError(err.message)
       }
     }
 
-    fetchAndDecrypt()
+    fetchHistory()
+    return () => {
+      cancelled = true
+    }
+  }, [sharedKey, conversationId, user?.id])
+
+  // Alimente le cache mémoire (réouverture instantanée)
+  useEffect(() => {
+    if (loading || !conversationId) return
+    setCachedMessages(conversationId, messages)
+  }, [messages, loading, conversationId])
+
+  // Souscriptions realtime — stables tant que la conversation ne change pas
+  useEffect(() => {
+    if (!sharedKey || !conversationId || !user) return
+
+    const msgChannel = subscribeToMessages(conversationId, {
+      onInsert: async (newMsg) => {
+        const decrypted = await decryptChatMessage(sharedKey, newMsg)
+        // Ne pas afficher les messages des utilisateurs bloqués
+        if (blockedUserIdsRef.current.has(newMsg.sender_id)) return
+
+        // Autoscroll seulement si on est déjà en bas (ou message envoyé par soi)
+        const shouldScroll = newMsg.sender_id === user.id || isNearBottom()
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === decrypted.id)) return prev
+          // Envoi par soi : le realtime peut arriver avant la réponse HTTP —
+          // remplacer le message optimiste au lieu de dupliquer
+          if (newMsg.sender_id === user.id) {
+            const tempIdx = prev.findIndex((m) => m.pending && m.sender_id === user.id)
+            if (tempIdx >= 0) {
+              const copy = [...prev]
+              copy[tempIdx] = decrypted
+              return copy
+            }
+          }
+          return [...prev, decrypted]
+        })
+        if (shouldScroll) requestAnimationFrame(() => scrollToBottom('smooth'))
+
+        if (newMsg.sender_id !== user.id) {
+          markAsRead(conversationId).catch(console.error)
+        }
+      },
+      onUpdate: async (updated) => {
+        const decrypted = await decryptChatMessage(sharedKey, updated)
+        setMessages((prev) =>
+          prev.map((m) => (m.id === decrypted.id ? decrypted : m))
+        )
+      },
+      onDelete: (old) => {
+        if (!old?.id) return
+        setMessages((prev) => prev.filter((m) => m.id !== old.id))
+      },
+    })
+
+    const readChannel = subscribeToMessageReads(conversationId, (readRow) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== readRow.message_id) return m
+          const existing = m.message_reads || []
+          if (existing.some((r) => r.user_id === readRow.user_id)) return m
+          return {
+            ...m,
+            message_reads: [
+              ...existing,
+              { user_id: readRow.user_id, read_at: readRow.read_at },
+            ],
+          }
+        })
+      )
+    })
+
+    const reactChannel = subscribeToReactions(conversationId, (payload) => {
+      if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+        const { message_id, user_id, emoji } = payload.new
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== message_id) return m
+            const existing = m.message_reactions || []
+            const idx = existing.findIndex((r) => r.user_id === user_id)
+            let reactions
+            if (idx >= 0) {
+              reactions = existing.map((r) =>
+                r.user_id === user_id ? { ...r, emoji } : r
+              )
+            } else {
+              reactions = [...existing, { user_id, emoji }]
+            }
+            return { ...m, message_reactions: reactions }
+          })
+        )
+      } else if (payload.eventType === 'DELETE') {
+        const { message_id, user_id } = payload.old
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== message_id) return m
+            return {
+              ...m,
+              message_reactions: (m.message_reactions || []).filter(
+                (r) => r.user_id !== user_id
+              ),
+            }
+          })
+        )
+      }
+    })
 
     return () => {
-      isMounted = false
       msgChannel?.unsubscribe?.()
       readChannel?.unsubscribe?.()
       reactChannel?.unsubscribe?.()
     }
-  }, [sharedKey, conversationId, user, isGroup, otherUser?.username, blockedUserIds])
+  }, [sharedKey, conversationId, user?.id])
+
+  // Chargement des messages plus anciens (pagination par curseur)
+  const loadOlderMessages = useCallback(async () => {
+    if (!sharedKey || loadingOlderRef.current || !hasMoreRef.current) return
+    const oldest = messagesRef.current.find((m) => !m.pending && !m.failed)
+    if (!oldest) return
+
+    loadingOlderRef.current = true
+    setLoadingOlder(true)
+    try {
+      const older = await getOlderMessages(conversationId, oldest.created_at)
+      const decrypted = await Promise.all(
+        older.map((m) => decryptChatMessage(sharedKey, m))
+      )
+      const filtered = decrypted.filter(
+        (m) => !blockedUserIdsRef.current.has(m.sender_id)
+      )
+      hasMoreRef.current = older.length >= MESSAGES_PAGE_SIZE
+
+      // Mémorise la distance au bas pour restaurer la position après insertion
+      const el = scrollContainerRef.current
+      scrollAdjustRef.current = el ? el.scrollHeight - el.scrollTop : null
+
+      setMessages((prev) => {
+        const known = new Set(prev.map((m) => m.id))
+        const fresh = filtered.filter((m) => !known.has(m.id))
+        if (fresh.length === 0) {
+          scrollAdjustRef.current = null
+          return prev
+        }
+        return [...fresh, ...prev]
+      })
+    } catch (err) {
+      console.error('loadOlderMessages:', err)
+    } finally {
+      loadingOlderRef.current = false
+      setLoadingOlder(false)
+    }
+  }, [sharedKey, conversationId])
+
+  loadOlderRef.current = loadOlderMessages
+
+  // Restaure la position de scroll après insertion de messages anciens
+  useLayoutEffect(() => {
+    if (scrollAdjustRef.current == null) return
+    const el = scrollContainerRef.current
+    if (el) el.scrollTop = el.scrollHeight - scrollAdjustRef.current
+    scrollAdjustRef.current = null
+  }, [messages])
+
+  // Sentinel en haut de liste : déclenche le chargement de l'historique
+  useEffect(() => {
+    if (loading) return
+    const sentinel = topSentinelRef.current
+    const container = scrollContainerRef.current
+    if (!sentinel || !container) return
+
+    let observer = null
+    let raf2 = null
+    // Attache après le scroll initial vers le bas (sinon le sentinel visible
+    // au premier rendu déclencherait un chargement parasite)
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        observer = new IntersectionObserver(
+          (entries) => {
+            if (entries[0]?.isIntersecting) loadOlderRef.current?.()
+          },
+          { root: container, rootMargin: '200px 0px 0px 0px' }
+        )
+        observer.observe(sentinel)
+      })
+    })
+
+    return () => {
+      cancelAnimationFrame(raf1)
+      if (raf2) cancelAnimationFrame(raf2)
+      observer?.disconnect()
+    }
+  }, [loading, conversationId])
 
   function getReplyToPayload() {
     if (!replyToMessage?.payload) return null
@@ -504,16 +665,83 @@ export function ChatWindow({ conversationId }) {
     return { id: replyToMessage.id, senderName: sender, snippet }
   }
 
+  function assertOtherUserNotBlocked() {
+    // État déjà chargé/maintenu localement : pas de round-trip réseau par envoi
+    if (!isGroup && otherUser?.id && (isOtherUserBlocked || blockedUserIds.has(otherUser.id))) {
+      throw new Error(`Vous avez bloqué @${otherUser.username}. Débloquez cet utilisateur pour envoyer un message.`)
+    }
+  }
+
+  function makeTempId() {
+    return `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+  }
+
+  function appendOptimisticMessage(payload, sendOptions = {}) {
+    const tempId = makeTempId()
+    const optimistic = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: user.id,
+      created_at: new Date().toISOString(),
+      expires_at: sendOptions.expiresAt ?? null,
+      ephemeral_kind: sendOptions.ephemeralKind ?? null,
+      payload,
+      message_reads: [],
+      message_reactions: [],
+      pending: true,
+    }
+    setMessages((prev) => [...prev, optimistic])
+    requestAnimationFrame(() => scrollToBottom('smooth'))
+    return tempId
+  }
+
+  function replaceOptimisticMessage(tempId, decrypted) {
+    setMessages((prev) => {
+      const withoutTemp = prev.filter((m) => m.id !== tempId)
+      // Le canal realtime a pu livrer le message avant la réponse HTTP :
+      // on écrase sa copie (conserve localUrl pour les médias)
+      const idx = withoutTemp.findIndex((m) => m.id === decrypted.id)
+      if (idx >= 0) {
+        const copy = [...withoutTemp]
+        copy[idx] = decrypted
+        return copy
+      }
+      return [...withoutTemp, decrypted]
+    })
+  }
+
+  function markOptimisticFailed(tempId, retry) {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === tempId ? { ...m, pending: false, failed: true, _retry: retry } : m
+      )
+    )
+  }
+
+  // Envoi optimiste : le message apparaît immédiatement (horloge),
+  // le chiffrement + réseau se font en arrière-plan.
+  function sendOptimistic(payloadJson, sendOptions = {}, localExtras = null) {
+    const payload = { ...parseMessagePayload(payloadJson), ...(localExtras || {}) }
+    const tempId = appendOptimisticMessage(payload, sendOptions)
+
+    void (async () => {
+      try {
+        const ciphertext = await encryptMessage(sharedKey, payloadJson)
+        const sent = await sendMessage(conversationId, user.id, ciphertext, sendOptions)
+        const decrypted = await decryptChatMessage(sharedKey, sent)
+        if (localExtras?.localUrl) decrypted.payload.localUrl = localExtras.localUrl
+        replaceOptimisticMessage(tempId, decrypted)
+      } catch (err) {
+        console.error('sendOptimistic:', err)
+        markOptimisticFailed(tempId, () => sendOptimistic(payloadJson, sendOptions, localExtras))
+      }
+    })()
+  }
+
   async function handleSendMessage(text, ephemeralMode = null, editTarget = null) {
     if (!sharedKey || !user) return
 
-    // Vérifier si l'autre utilisateur est bloqué (conversation directe)
-    if (!isGroup && otherUser?.id) {
-      const blocked = await isUserBlocked(otherUser.id)
-      if (blocked) {
-        throw new Error(`Vous avez bloqué @${otherUser.username}. Débloquez cet utilisateur pour envoyer un message.`)
-      }
-    }
+    assertOtherUserNotBlocked()
 
     if (editTarget?.id) {
       const ciphertext = await encryptMessage(
@@ -535,42 +763,84 @@ export function ChatWindow({ conversationId }) {
       }
       : null
 
-    const ciphertext = await encryptMessage(
-      sharedKey,
-      buildTextPayload(text, replyTo, ephemeralPayload, storyReplyMeta)
-    )
+    const payloadJson = buildTextPayload(text, replyTo, ephemeralPayload, storyReplyMeta)
 
     setReplyToMessage(null)
     setStoryReplyContext(null)
 
-    const sent = await sendMessage(conversationId, user.id, ciphertext, {
+    sendOptimistic(payloadJson, {
       expiresAt: server.expiresAt,
       ephemeralKind: server.ephemeralKind,
     })
-    const decrypted = await decryptChatMessage(sharedKey, sent)
-    setMessages((prev) => [...prev, decrypted])
-    setTimeout(scrollToBottom, 100)
   }
 
-  async function handleSendSticker(emoji) {
+  function handleSendSticker(emoji) {
     if (!sharedKey || !user) return
-    const ciphertext = await encryptMessage(sharedKey, buildStickerPayload(emoji))
-    const sent = await sendMessage(conversationId, user.id, ciphertext)
-    const decrypted = await decryptChatMessage(sharedKey, sent)
-    setMessages((prev) => [...prev, decrypted])
-    setTimeout(scrollToBottom, 100)
+    sendOptimistic(buildStickerPayload(emoji))
+  }
+
+  // Pipeline média : préview locale immédiate, chiffrement/upload en arrière-plan
+  function sendFilePipeline(args) {
+    const { buffer, name, mime, size, replyTo, ephemeralPayload, server, localUrl } = args
+
+    const optimisticPayload = { t: 'media', name, mime, size, localUrl }
+    if (replyTo) optimisticPayload.replyTo = replyTo
+    if (ephemeralPayload) optimisticPayload.ephemeral = ephemeralPayload
+
+    const tempId = appendOptimisticMessage(optimisticPayload, {
+      expiresAt: server.expiresAt,
+      ephemeralKind: server.ephemeralKind,
+    })
+
+    void (async () => {
+      try {
+        const encrypted = await prepareEncryptedMedia(sharedKey, buffer)
+
+        let payloadJson
+        let mediaStoragePath = null
+        if (size <= INLINE_MEDIA_MAX) {
+          payloadJson = buildMediaPayload({
+            name,
+            mime,
+            size,
+            inline: true,
+            data: bufToBase64(encrypted),
+            replyTo,
+            ephemeral: ephemeralPayload,
+          })
+        } else {
+          mediaStoragePath = await uploadEncryptedMedia(conversationId, encrypted)
+          payloadJson = buildMediaPayload({
+            name,
+            mime,
+            size,
+            path: mediaStoragePath,
+            replyTo,
+            ephemeral: ephemeralPayload,
+          })
+        }
+
+        const ciphertext = await encryptMessage(sharedKey, payloadJson)
+        const sent = await sendMessage(conversationId, user.id, ciphertext, {
+          expiresAt: server.expiresAt,
+          ephemeralKind: server.ephemeralKind,
+          mediaStoragePath,
+        })
+        const decrypted = await decryptChatMessage(sharedKey, sent)
+        // Réutilise la préview locale : pas de re-téléchargement/déchiffrement
+        decrypted.payload.localUrl = localUrl
+        replaceOptimisticMessage(tempId, decrypted)
+      } catch (err) {
+        console.error('sendFilePipeline:', err)
+        markOptimisticFailed(tempId, () => sendFilePipeline(args))
+      }
+    })()
   }
 
   async function handleSendFile(file, ephemeralMode = null) {
     if (!sharedKey || !user) return
 
-    // Vérifier si l'autre utilisateur est bloqué (conversation directe)
-    if (!isGroup && otherUser?.id) {
-      const blocked = await isUserBlocked(otherUser.id)
-      if (blocked) {
-        throw new Error(`Vous avez bloqué @${otherUser.username}. Débloquez cet utilisateur pour envoyer un message.`)
-      }
-    }
+    assertOtherUserNotBlocked()
 
     if (file.size > MAX_MEDIA_BYTES) {
       throw new Error('Fichier trop volumineux (maximum 50 Mo).')
@@ -580,44 +850,25 @@ export function ChatWindow({ conversationId }) {
     const mime = file.type || 'application/octet-stream'
     const replyTo = getReplyToPayload()
     const { server, payload: ephemeralPayload } = buildEphemeralSendOptions(ephemeralMode)
+    const localUrl = URL.createObjectURL(new Blob([buffer], { type: mime }))
 
-    let payloadJson
-    let mediaStoragePath = null
-
-    if (file.size <= INLINE_MEDIA_MAX) {
-      const encrypted = await prepareEncryptedMedia(sharedKey, buffer)
-      payloadJson = buildMediaPayload({
-        name: file.name,
-        mime,
-        size: file.size,
-        inline: true,
-        data: bufToBase64(encrypted),
-        replyTo,
-        ephemeral: ephemeralPayload,
-      })
-    } else {
-      const encrypted = await prepareEncryptedMedia(sharedKey, buffer)
-      mediaStoragePath = await uploadEncryptedMedia(conversationId, encrypted)
-      payloadJson = buildMediaPayload({
-        name: file.name,
-        mime,
-        size: file.size,
-        path: mediaStoragePath,
-        replyTo,
-        ephemeral: ephemeralPayload,
-      })
-    }
-
-    const ciphertext = await encryptMessage(sharedKey, payloadJson)
     setReplyToMessage(null)
-    const sent = await sendMessage(conversationId, user.id, ciphertext, {
-      expiresAt: server.expiresAt,
-      ephemeralKind: server.ephemeralKind,
-      mediaStoragePath,
+
+    sendFilePipeline({
+      buffer,
+      name: file.name,
+      mime,
+      size: file.size,
+      replyTo,
+      ephemeralPayload,
+      server,
+      localUrl,
     })
-    const decrypted = await decryptChatMessage(sharedKey, sent)
-    setMessages((prev) => [...prev, decrypted])
-    setTimeout(scrollToBottom, 100)
+  }
+
+  function handleRetryMessage(message) {
+    setMessages((prev) => prev.filter((m) => m.id !== message.id))
+    message._retry?.()
   }
 
   async function handleReact(message, emoji) {
@@ -878,7 +1129,11 @@ export function ChatWindow({ conversationId }) {
       <WellbeingBar />
 
       {/* Messages area with chat background */}
-      <div className="relative flex-1 overflow-y-auto scroll-smooth py-2" style={{ backgroundColor: 'var(--background)' }}>
+      <div
+        ref={scrollContainerRef}
+        className="relative flex-1 overflow-y-auto py-2"
+        style={{ backgroundColor: 'var(--background)' }}
+      >
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-highlight">
@@ -897,6 +1152,13 @@ export function ChatWindow({ conversationId }) {
           </div>
         ) : (
           <div className="flex flex-col">
+            {/* Sentinel : charge les messages plus anciens quand il devient visible */}
+            <div ref={topSentinelRef} aria-hidden="true" />
+            {loadingOlder && (
+              <div className="flex justify-center py-2">
+                <Spinner className="h-5 w-5 text-primary" />
+              </div>
+            )}
             {messages.map((msg, index) => {
               const sender = participants.find((p) => p.profiles.id === msg.sender_id)?.profiles
               const prev = messages[index - 1]
@@ -927,6 +1189,7 @@ export function ChatWindow({ conversationId }) {
                       reloadConversation()
                     }}
                     onReact={handleReact}
+                    onRetry={handleRetryMessage}
                     onScrollToReply={scrollToMessage}
                     onDeleteForMe={async (m) => {
                       await hideMessageForMe(m.id)
