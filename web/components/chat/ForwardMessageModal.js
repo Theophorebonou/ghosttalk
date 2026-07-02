@@ -83,10 +83,10 @@ export function ForwardMessageModal({ message, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="max-h-[80vh] w-full max-w-md overflow-hidden rounded-2xl border border-zinc-700 bg-[#2a2838] shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-800 p-4">
-          <h2 className="font-bold text-zinc-100">Transférer le message</h2>
-          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-white">
+      <div className="max-h-[80vh] w-full max-w-md overflow-hidden rounded-2xl border border-border bg-[#2a2838] shadow-xl">
+        <div className="flex items-center justify-between border-b border-border p-4">
+          <h2 className="font-bold text-text">Transférer le message</h2>
+          <button type="button" onClick={onClose} className="text-text-muted hover:text-text">
             ✕
           </button>
         </div>
@@ -104,7 +104,7 @@ export function ForwardMessageModal({ message, onClose }) {
                 type="button"
                 disabled={!!sending}
                 onClick={() => forwardTo(conv)}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm text-zinc-200 hover:bg-zinc-800"
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm text-text hover:bg-surface-highlight"
               >
                 <span>{label(conv)}</span>
                 {sending === conv.id && <Spinner className="h-4 w-4" />}

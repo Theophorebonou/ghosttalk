@@ -62,7 +62,7 @@ export function KeyRestorePanel({ onRestored, onGenerateNew }) {
           value={backupText}
           onChange={(e) => setBackupText(e.target.value)}
           rows={5}
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-xs font-mono text-zinc-100 outline-none focus:border-violet-500"
+          className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-xs font-mono text-zinc-100 outline-none focus:border-primary"
           placeholder='{"v":1,"app":"ghosttalk",...}'
         />
       </div>

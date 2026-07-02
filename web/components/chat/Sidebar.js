@@ -428,7 +428,7 @@ export function Sidebar() {
       <aside className="flex h-full min-w-0 flex-1 flex-col bg-surface">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pb-1 pt-3.5">
-        <h1 className="text-xl font-bold text-text">GhostTalk</h1>
+        <h1 className="text-xl font-bold text-primary">GhostTalk</h1>
         <div className="flex items-center gap-1">
           <button
             type="button"

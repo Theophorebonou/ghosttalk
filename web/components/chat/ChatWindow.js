@@ -1160,6 +1160,9 @@ export function ChatWindow({ conversationId }) {
               const prev = messages[index - 1]
               const showDateSeparator =
                 !prev || !isSameCalendarDay(prev.created_at, msg.created_at)
+              // Bulles groupées par expéditeur : flèche sur la première seulement
+              const isFirstOfGroup =
+                showDateSeparator || !prev || prev.sender_id !== msg.sender_id
 
               return (
                 <Fragment key={msg.id}>
@@ -1168,6 +1171,7 @@ export function ChatWindow({ conversationId }) {
                     message={msg}
                     sharedKey={sharedKey}
                     isOwn={msg.sender_id === user?.id}
+                    isFirstOfGroup={isFirstOfGroup}
                     senderName={isGroup ? sender?.username : null}
                     isGroup={isGroup}
                     isDirect={!isGroup}

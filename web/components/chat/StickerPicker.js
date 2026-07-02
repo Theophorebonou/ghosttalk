@@ -70,19 +70,19 @@ export function StickerPicker({ onSelect, onClose }) {
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="h-64 w-64 animate-pulse rounded-xl border border-zinc-700 bg-zinc-900" />
+        <div className="h-64 w-64 animate-pulse rounded-xl border border-border bg-surface" />
       </div>
     )
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-2xl">
+      <div className="w-full max-w-2xl rounded-xl border border-border bg-surface p-4 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-100">Stickers</h2>
+          <h2 className="text-lg font-semibold text-text">Stickers</h2>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-300"
+            className="text-text-muted hover:text-text"
           >
             ✕
           </button>
@@ -94,7 +94,7 @@ export function StickerPicker({ onSelect, onClose }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher un sticker..."
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-violet-500 focus:outline-none"
+            className="w-full rounded-lg border border-border bg-surface-highlight px-3 py-2 text-sm text-text placeholder:text-text-muted focus:border-primary focus:outline-none"
           />
         </div>
 
@@ -104,13 +104,13 @@ export function StickerPicker({ onSelect, onClose }) {
               <button
                 key={sticker.id}
                 onClick={() => handleStickerClick(sticker)}
-                className="aspect-square rounded-lg bg-zinc-800 p-2 text-4xl transition hover:bg-zinc-700"
+                className="aspect-square rounded-lg bg-surface-highlight p-2 text-4xl transition hover:bg-border"
               >
                 {sticker.emoji}
               </button>
             ))}
             {searchResults.length === 0 && (
-              <p className="col-span-5 text-center text-sm text-zinc-500">
+              <p className="col-span-5 text-center text-sm text-text-muted">
                 Aucun résultat
               </p>
             )}
@@ -124,8 +124,8 @@ export function StickerPicker({ onSelect, onClose }) {
                   onClick={() => handlePackClick(pack)}
                   className={`shrink-0 rounded-full px-3 py-1 text-sm transition ${
                     selectedPack?.id === pack.id
-                      ? 'bg-violet-600 text-white'
-                      : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                      ? 'bg-primary text-white'
+                      : 'bg-surface-highlight text-text hover:bg-border'
                   }`}
                 >
                   {pack.name}
@@ -135,7 +135,7 @@ export function StickerPicker({ onSelect, onClose }) {
 
             {recent.length > 0 && !selectedPack && (
               <div className="mb-4">
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
                   Récents
                 </h3>
                 <div className="grid grid-cols-5 gap-2">
@@ -143,7 +143,7 @@ export function StickerPicker({ onSelect, onClose }) {
                     <button
                       key={sticker.id}
                       onClick={() => handleStickerClick(sticker)}
-                      className="aspect-square rounded-lg bg-zinc-800 p-2 text-4xl transition hover:bg-zinc-700"
+                      className="aspect-square rounded-lg bg-surface-highlight p-2 text-4xl transition hover:bg-border"
                     >
                       {sticker.emoji}
                     </button>
@@ -158,7 +158,7 @@ export function StickerPicker({ onSelect, onClose }) {
                   <button
                     key={sticker.id}
                     onClick={() => handleStickerClick(sticker)}
-                    className="aspect-square rounded-lg bg-zinc-800 p-2 text-4xl transition hover:bg-zinc-700"
+                    className="aspect-square rounded-lg bg-surface-highlight p-2 text-4xl transition hover:bg-border"
                   >
                     {sticker.emoji}
                   </button>

@@ -118,10 +118,10 @@ export function ManageGroupMembersModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-zinc-900 shadow-xl">
-        <div className="border-b border-zinc-800 p-6 pb-4">
-          <h2 className="text-xl font-bold text-zinc-100">Membres du groupe</h2>
-          <p className="mt-1 text-sm text-zinc-400">
+      <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-surface shadow-xl">
+        <div className="border-b border-border p-6 pb-4">
+          <h2 className="text-xl font-bold text-text">Membres du groupe</h2>
+          <p className="mt-1 text-sm text-text-muted">
             {participants.length} membre{participants.length > 1 ? 's' : ''}
           </p>
         </div>
@@ -154,16 +154,16 @@ export function ManageGroupMembersModal({
               return (
                 <li
                   key={userId}
-                  className="flex items-center justify-between rounded-xl bg-zinc-800 px-4 py-3"
+                  className="flex items-center justify-between rounded-xl bg-surface-highlight px-4 py-3"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-zinc-100">
+                    <p className="truncate text-sm font-medium text-text">
                       @{profile?.username}
                       {isSelf && (
-                        <span className="ml-2 text-xs text-zinc-500">(vous)</span>
+                        <span className="ml-2 text-xs text-text-muted">(vous)</span>
                       )}
                     </p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-text-muted">
                       {entry.role === 'admin' ? 'Administrateur' : 'Membre'}
                     </p>
                   </div>
@@ -184,8 +184,8 @@ export function ManageGroupMembersModal({
           </ul>
 
           {isAdmin && (
-            <div className="mt-6 border-t border-zinc-800 pt-6">
-              <label className="mb-2 block text-sm text-zinc-400">
+            <div className="mt-6 border-t border-border pt-6">
+              <label className="mb-2 block text-sm text-text-muted">
                 Ajouter un membre
               </label>
               <Input
@@ -200,18 +200,18 @@ export function ManageGroupMembersModal({
                 </div>
               )}
               {searchResults.length > 0 && (
-                <ul className="mt-2 overflow-hidden rounded-xl bg-zinc-800">
+                <ul className="mt-2 overflow-hidden rounded-xl bg-surface-highlight">
                   {searchResults.map((user) => (
                     <li
                       key={user.id}
                       className="flex items-center justify-between px-4 py-3"
                     >
-                      <span className="text-sm text-zinc-100">@{user.username}</span>
+                      <span className="text-sm text-text">@{user.username}</span>
                       <button
                         type="button"
                         onClick={() => handleAdd(user.id)}
                         disabled={!!actionLoading}
-                        className="text-xs font-semibold text-violet-400 hover:text-violet-300 disabled:opacity-50"
+                        className="text-xs font-semibold text-primary hover:text-primary-hover disabled:opacity-50"
                       >
                         {actionLoading === `add-${user.id}` ? (
                           <Spinner className="h-4 w-4 border-2" />
@@ -229,7 +229,7 @@ export function ManageGroupMembersModal({
           {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-zinc-800 p-6">
+        <div className="flex flex-col gap-2 border-t border-border p-6">
           <Button
             type="button"
             variant="ghost"

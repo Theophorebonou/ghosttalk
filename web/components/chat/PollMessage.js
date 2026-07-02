@@ -82,12 +82,12 @@ export function PollMessage({ poll, isOwn, onVote }) {
   const totalVotes = results?.reduce((sum, r) => sum + r.voteCount, 0) || 0
 
   return (
-    <div className="my-3 rounded-xl border border-zinc-700 bg-zinc-900/50 p-4">
+    <div className="my-3 rounded-xl border border-border bg-black/50 p-4">
       <div className="mb-3">
-        <p className="text-sm font-medium text-zinc-100">{poll.question}</p>
-        <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
+        <p className="text-sm font-medium text-text">{poll.question}</p>
+        <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
           <span>{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</span>
-          {poll.is_quiz && <span className="text-violet-400">• Quiz</span>}
+          {poll.is_quiz && <span className="text-primary">• Quiz</span>}
           {poll.is_anonymous && <span>• Anonyme</span>}
         </div>
       </div>
@@ -108,7 +108,7 @@ export function PollMessage({ poll, isOwn, onVote }) {
               className={`relative w-full rounded-lg border-2 p-3 text-left transition-all ${
                 isVoted
                   ? 'border-primary bg-primary/10'
-                  : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+                  : 'border-border bg-surface-highlight/60 hover:border-border'
               }`}
             >
               {hasVoted && (
@@ -121,10 +121,10 @@ export function PollMessage({ poll, isOwn, onVote }) {
                 />
               )}
               <div className="relative flex items-center justify-between">
-                <span className="text-sm text-zinc-100">{option.option_text}</span>
+                <span className="text-sm text-text">{option.option_text}</span>
                 <div className="flex items-center gap-2">
                   {hasVoted && (
-                    <span className="text-xs font-medium text-zinc-400">
+                    <span className="text-xs font-medium text-text-muted">
                       {Math.round(percentage)}%
                     </span>
                   )}
@@ -139,7 +139,7 @@ export function PollMessage({ poll, isOwn, onVote }) {
       </div>
 
       {poll.is_quiz && poll.correct_option_id && isOwn && (
-        <div className="mt-3 text-xs text-zinc-500">
+        <div className="mt-3 text-xs text-text-muted">
           Réponse correcte: {poll.poll_options?.find((o) => o.id === poll.correct_option_id)?.option_text}
         </div>
       )}

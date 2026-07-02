@@ -9,7 +9,9 @@ export function ThemeProvider({ children }) {
   const [themeId, setThemeId] = useState(DEFAULT_THEME)
 
   useEffect(() => {
-    const saved = localStorage.getItem('ghosttalk_theme')
+    // Clé v2 : force le nouveau défaut (clair, façon WhatsApp Web) une fois,
+    // l'ancienne clé ayant été écrite automatiquement sans choix utilisateur
+    const saved = localStorage.getItem('ghosttalk_theme_v2')
     if (saved && THEMES[saved]) {
       setThemeId(saved)
       applyTheme(saved)
@@ -20,7 +22,7 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     applyTheme(themeId)
-    localStorage.setItem('ghosttalk_theme', themeId)
+    localStorage.setItem('ghosttalk_theme_v2', themeId)
   }, [themeId])
 
   const setTheme = (newThemeId) => {

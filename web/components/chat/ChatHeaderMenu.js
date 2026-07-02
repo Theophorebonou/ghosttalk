@@ -73,13 +73,13 @@ export function ChatHeaderMenu({
       />
       {/* Dropdown – fixed so it escapes overflow:hidden */}
       <div
-        className="fixed z-[100] min-w-[200px] rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl"
+        className="fixed z-[100] min-w-[200px] rounded-xl border border-border bg-surface py-1 shadow-2xl"
         style={{ top: menuPos.top, right: menuPos.right }}
       >
             <button
               type="button"
               disabled={busy}
-              className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+              className="w-full px-4 py-2 text-left text-sm text-text hover:bg-surface-highlight"
               onClick={() =>
                 run(async () => {
                   await requestNotificationPermission()
@@ -88,16 +88,16 @@ export function ChatHeaderMenu({
             >
               Notifications (voir aussi Paramètres)
             </button>
-            <div className="my-1 border-t border-zinc-800" />
+            <div className="my-1 border-t border-border" />
             {!isMuted ? (
               <>
-                <p className="px-4 py-1 text-[10px] uppercase text-zinc-500">Silencieux pour</p>
+                <p className="px-4 py-1 text-[10px] uppercase text-text-muted">Silencieux pour</p>
                 {MUTE_DURATIONS.map((d) => (
                   <button
                     key={d.id}
                     type="button"
                     disabled={busy}
-                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                    className="w-full px-4 py-2 text-left text-sm text-text hover:bg-surface-highlight"
                     onClick={() =>
                       run(async () => {
                         const until = d.ms
@@ -116,7 +116,7 @@ export function ChatHeaderMenu({
               <button
                 type="button"
                 disabled={busy}
-                className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+                className="w-full px-4 py-2 text-left text-sm text-text hover:bg-surface-highlight"
                 onClick={() => run(async () => {
                   await unmuteConversation(conversationId)
                   onMuted?.()
@@ -125,11 +125,11 @@ export function ChatHeaderMenu({
                 Réactiver le son
               </button>
             )}
-            <div className="my-1 border-t border-zinc-800" />
+            <div className="my-1 border-t border-border" />
             <button
               type="button"
               disabled={busy}
-              className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800"
+              className="w-full px-4 py-2 text-left text-sm text-text hover:bg-surface-highlight"
               onClick={() =>
                 run(async () => {
                   await archiveConversation(conversationId, !isArchived)
@@ -143,7 +143,7 @@ export function ChatHeaderMenu({
             <button
               type="button"
               disabled={busy}
-              className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-zinc-800"
+              className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-surface-highlight"
               onClick={() => {
                 if (!confirm('Effacer tout l’historique de cette conversation ?')) return
                 run(async () => {
@@ -160,7 +160,7 @@ export function ChatHeaderMenu({
                   <button
                     type="button"
                     disabled={busy}
-                    className="w-full px-4 py-2 text-left text-sm text-green-400 hover:bg-zinc-800"
+                    className="w-full px-4 py-2 text-left text-sm text-green-400 hover:bg-surface-highlight"
                     onClick={() => {
                       if (!confirm(`Débloquer @${otherUser.username} ?`)) return
                       run(async () => {
@@ -175,7 +175,7 @@ export function ChatHeaderMenu({
                   <button
                     type="button"
                     disabled={busy}
-                    className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-zinc-800"
+                    className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-surface-highlight"
                     onClick={() => {
                       if (!confirm(`Bloquer @${otherUser.username} ?`)) return
                       run(async () => {
@@ -200,7 +200,7 @@ export function ChatHeaderMenu({
         ref={btnRef}
         type="button"
         onClick={toggleOpen}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+        className="flex h-9 w-9 items-center justify-center rounded-full text-text-muted hover:bg-surface-highlight hover:text-text"
         aria-label="Options"
       >
         ⋮

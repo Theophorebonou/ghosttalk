@@ -26,6 +26,7 @@ export const MessageBubble = memo(function MessageBubble({
   isDirect,
   messageRef,
   highlight,
+  isFirstOfGroup = true,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
@@ -53,21 +54,60 @@ export const MessageBubble = memo(function MessageBubble({
 
   const canEdit = isOwn && message.payload?.t === 'text' && !message.ephemeral_kind
 
+  const isTextMsg = message.payload?.t === 'text'
+  const showReadReceipt = isOwn && isDirect && currentUserId && otherParticipantIds?.length > 0
+  const showPendingIcon = isOwn && isGroup && message.pending
+  const readCount = isOwn && isGroup && !message.pending ? (message.message_reads?.length || 0) : 0
+
+  // Largeur réservée en fin de dernière ligne pour l'heure + coches (façon WhatsApp)
+  const metaSpacerWidth =
+    38 +
+    (message.edited_at ? 46 : 0) +
+    (showReadReceipt || showPendingIcon ? 24 : 0) +
+    (readCount ? 34 : 0) +
+    (message.ephemeral_kind ? 44 : 0)
+
+  const metaContent = (
+    <>
+      <EphemeralBadge message={message} />
+      {message.edited_at && (
+        <span className={`text-[11px] ${isOwn ? 'text-message-out-text/50' : 'text-text-muted'}`}>
+          modifié
+        </span>
+      )}
+      <span className={`text-[11px] ${isOwn ? 'text-message-out-text/60' : 'text-text-muted'}`}>
+        {new Date(message.created_at).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}
+      </span>
+      {showReadReceipt && (
+        <ReadReceiptIcon
+          status={getReadStatusForMessage(message, currentUserId, otherParticipantIds)}
+        />
+      )}
+      {showPendingIcon && <ReadReceiptIcon status="pending" />}
+      {readCount > 0 && (
+        <span className="text-[11px] text-message-out-text/60">Lu {readCount}</span>
+      )}
+    </>
+  )
+
   return (
     <div
       ref={messageRef}
       id={`msg-${message.id}`}
-      className={`group flex w-full ${isOwn ? 'justify-end' : 'justify-start'} my-0.5 px-4 ${
-        highlight ? 'bg-primary/10' : ''
-      }`}
+      className={`group flex w-full ${isOwn ? 'justify-end' : 'justify-start'} ${
+        isFirstOfGroup ? 'mt-2' : 'mt-[2px]'
+      } mb-[2px] px-4 ${highlight ? 'bg-primary/10' : ''}`}
     >
-      <div className={`relative flex max-w-[75%] flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+      <div className={`relative flex max-w-[85%] flex-col md:max-w-[65%] ${isOwn ? 'items-end' : 'items-start'}`}>
         {/* Message bubble */}
         <div
-          className={`relative rounded-lg px-3 py-2 shadow-sm ${
+          className={`relative rounded-lg pl-[9px] pr-[7px] pt-[6px] pb-[8px] shadow-sm ${
             isOwn
-              ? 'bg-message-out text-message-out-text bubble-tail-out'
-              : 'bg-message-in text-message-in-text bubble-tail-in'
+              ? `bg-message-out text-message-out-text ${isFirstOfGroup ? 'bubble-tail-out rounded-tr-none' : ''}`
+              : `bg-message-in text-message-in-text ${isFirstOfGroup ? 'bubble-tail-in rounded-tl-none' : ''}`
           } ${message.pending ? 'opacity-70' : ''} ${message.failed ? 'opacity-80 ring-1 ring-error/60' : ''}`}
         >
           {/* Forwarded indicator */}
@@ -93,14 +133,14 @@ export const MessageBubble = memo(function MessageBubble({
               onClick={() => onScrollToReply?.(message.payload.replyTo.id)}
               className={`mb-2 w-full rounded border-l-2 px-2 py-1 text-left text-xs transition ${
                 isOwn 
-                  ? 'border-white/40 bg-black/20 hover:bg-black/30' 
+                  ? 'border-message-out-text/30 bg-black/10 hover:bg-black/15' 
                   : 'border-primary bg-surface-highlight hover:bg-surface'
               }`}
             >
-              <p className={`font-semibold ${isOwn ? 'text-white/90' : 'text-primary'}`}>
+              <p className={`font-semibold ${isOwn ? 'text-message-out-text/90' : 'text-primary'}`}>
                 {message.payload.replyTo.senderName}
               </p>
-              <p className={`truncate ${isOwn ? 'text-white/70' : 'text-text-muted'}`}>
+              <p className={`truncate ${isOwn ? 'text-message-out-text/70' : 'text-text-muted'}`}>
                 {message.payload.replyTo.snippet}
               </p>
             </button>
@@ -108,44 +148,28 @@ export const MessageBubble = memo(function MessageBubble({
 
           {/* Group sender name */}
           {isGroup && !isOwn && senderName && (
-            <p className="mb-1 text-xs font-semibold text-primary">@{senderName}</p>
+            <p className="mb-0.5 text-[12.8px] font-semibold text-primary">@{senderName}</p>
           )}
 
           {/* Message content */}
-          <MessageContent payload={message.payload} sharedKey={sharedKey} isOwn={isOwn} />
+          <MessageContent
+            payload={message.payload}
+            sharedKey={sharedKey}
+            isOwn={isOwn}
+            metaSpacerWidth={isTextMsg ? metaSpacerWidth : 0}
+          />
 
-          {/* Footer with time and status */}
-          <div className="mt-1 flex items-center justify-end gap-1.5">
-            <EphemeralBadge message={message} />
-            {message.edited_at && (
-              <span className={`text-[10px] ${isOwn ? 'text-white/50' : 'text-text-muted'}`}>
-                modifie
-              </span>
-            )}
-            <span className={`text-[10px] ${isOwn ? 'text-white/60' : 'text-text-muted'}`}>
-              {new Date(message.created_at).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+          {/* Heure + statut : incrustés dans la dernière ligne (texte),
+              en pied de bulle sinon — comme WhatsApp */}
+          {isTextMsg ? (
+            <span className="absolute bottom-[4px] right-[7px] flex items-center gap-1">
+              {metaContent}
             </span>
-            {isOwn && isDirect && currentUserId && otherParticipantIds?.length > 0 && (
-              <ReadReceiptIcon
-                status={getReadStatusForMessage(
-                  message,
-                  currentUserId,
-                  otherParticipantIds
-                )}
-              />
-            )}
-            {isOwn && isGroup && message.pending && (
-              <ReadReceiptIcon status="pending" />
-            )}
-            {isOwn && isGroup && !message.pending && message.message_reads?.length > 0 && (
-              <span className="text-[10px] text-white/60">
-                Lu {message.message_reads.length}
-              </span>
-            )}
-          </div>
+          ) : (
+            <div className="mt-1 flex items-center justify-end gap-1.5">
+              {metaContent}
+            </div>
+          )}
         </div>
 
         {/* Échec d'envoi : proposer de réessayer */}

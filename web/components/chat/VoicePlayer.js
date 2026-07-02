@@ -92,7 +92,7 @@ export function VoicePlayer({ blobUrl, isOwn }) {
         onClick={togglePlay}
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition ${
           isOwn
-            ? 'bg-white/20 text-white hover:bg-white/30'
+            ? 'bg-message-out-text/15 text-message-out-text hover:bg-message-out-text/25'
             : 'bg-primary/20 text-primary hover:bg-primary/30'
         }`}
         aria-label={playing ? 'Pause' : 'Lire'}
@@ -124,8 +124,8 @@ export function VoicePlayer({ blobUrl, isOwn }) {
               key={i}
               className={`flex-1 rounded-sm transition-colors duration-75 ${
                 i < activeBars
-                  ? isOwn ? 'bg-white/90' : 'bg-primary'
-                  : isOwn ? 'bg-white/30' : 'bg-primary/30'
+                  ? isOwn ? 'bg-message-out-text/80' : 'bg-primary'
+                  : isOwn ? 'bg-message-out-text/25' : 'bg-primary/30'
               }`}
               style={{ height: `${amp * 100}%`, minHeight: 3 }}
             />
@@ -133,7 +133,7 @@ export function VoicePlayer({ blobUrl, isOwn }) {
         </div>
 
         {/* Durée */}
-        <span className={`text-[10px] tabular-nums ${isOwn ? 'text-white/60' : 'text-text-muted'}`}>
+        <span className={`text-[10px] tabular-nums ${isOwn ? 'text-message-out-text/60' : 'text-text-muted'}`}>
           {playing ? fmt(currentTime) : fmt(duration)}
         </span>
       </div>

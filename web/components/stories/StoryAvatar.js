@@ -20,7 +20,7 @@ export function StoryAvatar({
       <div
         className={`rounded-full p-[2px] ${
           hasUnviewed
-            ? 'bg-gradient-to-tr from-violet-500 via-fuchsia-500 to-violet-300'
+            ? 'bg-gradient-to-tr from-primary via-primary-hover to-primary'
             : 'bg-border'
         }`}
       >

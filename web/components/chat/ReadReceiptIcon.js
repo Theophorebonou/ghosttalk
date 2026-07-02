@@ -15,7 +15,7 @@ export function ReadReceiptIcon({ status, className = '' }) {
         title="Envoi en cours"
         aria-label="Envoi en cours"
       >
-        <ClockIcon className="text-white/70" />
+        <ClockIcon className="text-message-out-text/60" />
       </span>
     )
   }
@@ -34,9 +34,9 @@ export function ReadReceiptIcon({ status, className = '' }) {
         status === 'read' ? 'Message lu' : status === 'delivered' ? 'Message distribué' : 'Message envoyé'
       }
     >
-      <CheckIcon className={isRead ? 'text-sky-300' : 'text-white/70'} />
+      <CheckIcon className={isRead ? 'text-[#53bdeb]' : 'text-message-out-text/60'} />
       {isDouble && (
-        <CheckIcon className={`-ml-2 ${isRead ? 'text-sky-300' : 'text-white/70'}`} />
+        <CheckIcon className={`-ml-2 ${isRead ? 'text-[#53bdeb]' : 'text-message-out-text/60'}`} />
       )}
     </span>
   )

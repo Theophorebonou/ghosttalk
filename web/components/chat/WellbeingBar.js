@@ -20,14 +20,14 @@ export function WellbeingBar() {
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 border-b border-violet-500/5 bg-violet-950/20 px-3 py-1.5 text-[11px] text-zinc-500">
+    <div className="flex items-center justify-between gap-2 border-b border-border bg-surface-highlight px-3 py-1.5 text-[11px] text-text-muted">
       <span className="truncate">Bien-être · conversations apaisées</span>
-      <label className="flex shrink-0 cursor-pointer items-center gap-1.5 hover:text-zinc-400">
+      <label className="flex shrink-0 cursor-pointer items-center gap-1.5 hover:text-text-muted">
         <input
           type="checkbox"
           checked={hideReceipts}
           onChange={toggle}
-          className="h-3 w-3 rounded border-zinc-600 bg-zinc-900 text-violet-600 focus:ring-violet-500"
+          className="h-3 w-3 rounded border-border bg-surface text-primary focus:ring-primary"
         />
         <span>Masquer mes « lu »</span>
       </label>

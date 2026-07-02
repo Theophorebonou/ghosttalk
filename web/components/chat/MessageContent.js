@@ -7,7 +7,7 @@ import { formatFileSize } from '@/lib/constants/media'
 import { Spinner } from '@/components/ui/Spinner'
 import { VoicePlayer } from './VoicePlayer'
 
-export function MessageContent({ payload, sharedKey, isOwn }) {
+export function MessageContent({ payload, sharedKey, isOwn, metaSpacerWidth = 0 }) {
   if (!payload) {
     return <p className="text-xs italic opacity-70">Chargement…</p>
   }
@@ -17,7 +17,15 @@ export function MessageContent({ payload, sharedKey, isOwn }) {
   }
 
   if (payload.t === 'text') {
-    return <p className="whitespace-pre-wrap break-words text-sm">{payload.b}</p>
+    return (
+      <p className="whitespace-pre-wrap break-words text-[14.2px] leading-[19px]">
+        {payload.b}
+        {metaSpacerWidth > 0 && (
+          // Réserve la place de l'heure + coches en fin de dernière ligne (façon WhatsApp)
+          <span aria-hidden="true" className="inline-block h-0" style={{ width: metaSpacerWidth }} />
+        )}
+      </p>
+    )
   }
 
   if (payload.t === 'sticker') {
@@ -80,7 +88,7 @@ function MediaAttachment({ payload, sharedKey, isOwn }) {
     }
   }, [payload, sharedKey])
 
-  const linkClass = isOwn ? 'text-violet-100 underline' : 'text-violet-300 underline'
+  const linkClass = isOwn ? 'text-[#027eb5] underline' : 'text-[#027eb5] underline'
 
   if (loading) {
     return (

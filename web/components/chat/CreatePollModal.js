@@ -53,12 +53,12 @@ export function CreatePollModal({ onClose, onCreatePoll }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
-        <h2 className="mb-4 text-lg font-semibold text-zinc-100">Créer un sondage</h2>
+      <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-2xl">
+        <h2 className="mb-4 text-lg font-semibold text-text">Créer un sondage</h2>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-300">
+            <label className="mb-2 block text-sm font-medium text-text">
               Question
             </label>
             <Input
@@ -71,7 +71,7 @@ export function CreatePollModal({ onClose, onCreatePoll }) {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-300">
+            <label className="mb-2 block text-sm font-medium text-text">
               Options
             </label>
             <div className="space-y-2">
@@ -97,7 +97,7 @@ export function CreatePollModal({ onClose, onCreatePoll }) {
                     <button
                       type="button"
                       onClick={() => removeOption(index)}
-                      className="px-2 text-zinc-500 hover:text-red-400"
+                      className="px-2 text-text-muted hover:text-red-400"
                     >
                       ✕
                     </button>
@@ -109,7 +109,7 @@ export function CreatePollModal({ onClose, onCreatePoll }) {
               <button
                 type="button"
                 onClick={addOption}
-                className="mt-2 text-sm text-violet-400 hover:text-violet-300"
+                className="mt-2 text-sm text-primary hover:text-primary-hover"
               >
                 + Ajouter une option
               </button>
@@ -124,7 +124,7 @@ export function CreatePollModal({ onClose, onCreatePoll }) {
                 onChange={(e) => setIsAnonymous(e.target.checked)}
                 className="h-4 w-4"
               />
-              <span className="text-sm text-zinc-300">Votes anonymes</span>
+              <span className="text-sm text-text">Votes anonymes</span>
             </label>
 
             <label className="flex items-center gap-2">
@@ -134,7 +134,7 @@ export function CreatePollModal({ onClose, onCreatePoll }) {
                 onChange={(e) => setIsQuiz(e.target.checked)}
                 className="h-4 w-4"
               />
-              <span className="text-sm text-zinc-300">Mode Quiz</span>
+              <span className="text-sm text-text">Mode Quiz</span>
             </label>
 
             <label className="flex items-center gap-2">
@@ -144,7 +144,7 @@ export function CreatePollModal({ onClose, onCreatePoll }) {
                 onChange={(e) => setAllowMultiple(e.target.checked)}
                 className="h-4 w-4"
               />
-              <span className="text-sm text-zinc-300">Choix multiples</span>
+              <span className="text-sm text-text">Choix multiples</span>
             </label>
           </div>
 

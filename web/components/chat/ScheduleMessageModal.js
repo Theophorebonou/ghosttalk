@@ -26,12 +26,12 @@ export function ScheduleMessageModal({ onClose, onSchedule }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
-        <h2 className="mb-4 text-lg font-semibold text-zinc-100">Programmer l'envoi</h2>
+      <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-2xl">
+        <h2 className="mb-4 text-lg font-semibold text-text">Programmer l'envoi</h2>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-300">
+            <label className="mb-2 block text-sm font-medium text-text">
               Date
             </label>
             <input
@@ -40,12 +40,12 @@ export function ScheduleMessageModal({ onClose, onSchedule }) {
               onChange={(e) => setDate(e.target.value)}
               min={minDate}
               required
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-surface-highlight px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-300">
+            <label className="mb-2 block text-sm font-medium text-text">
               Heure
             </label>
             <input
@@ -53,7 +53,7 @@ export function ScheduleMessageModal({ onClose, onSchedule }) {
               value={time}
               onChange={(e) => setTime(e.target.value)}
               required
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-surface-highlight px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
             />
           </div>
 

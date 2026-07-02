@@ -7,7 +7,7 @@ export function MessageDateSeparator({ date }) {
 
   return (
     <div className="flex justify-center px-4 py-3" role="separator" aria-label={formatMessageDayLabel(date)}>
-      <span className="rounded-full border border-border bg-surface/90 px-3 py-1 text-xs font-medium text-text-muted shadow-sm backdrop-blur-sm">
+      <span className="rounded-lg bg-surface px-3 py-[5px] text-[12.5px] uppercase text-text-muted shadow-sm">
         {formatMessageDayLabel(date)}
       </span>
     </div>

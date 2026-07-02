@@ -89,7 +89,7 @@ export const THEMES = {
   },
 }
 
-export const DEFAULT_THEME = 'dark'
+export const DEFAULT_THEME = 'light'
 
 export function getTheme(themeId) {
   return THEMES[themeId] || THEMES[DEFAULT_THEME]

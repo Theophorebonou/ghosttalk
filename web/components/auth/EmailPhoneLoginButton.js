@@ -238,7 +238,7 @@ export function EmailPhoneLoginButton() {
           }}
           className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
             method === 'email'
-              ? 'bg-violet-600 text-white'
+              ? 'bg-primary text-white'
               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
           }`}
         >
@@ -252,7 +252,7 @@ export function EmailPhoneLoginButton() {
           }}
           className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
             method === 'phone'
-              ? 'bg-violet-600 text-white'
+              ? 'bg-primary text-white'
               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
           }`}
         >
@@ -422,7 +422,7 @@ export function EmailPhoneLoginButton() {
       )}
 
       {info && !error && (
-        <p className="text-center text-sm text-violet-300">{info}</p>
+        <p className="text-center text-sm text-primary">{info}</p>
       )}
 
       {error && <p className="text-center text-sm text-red-400">{error}</p>}
