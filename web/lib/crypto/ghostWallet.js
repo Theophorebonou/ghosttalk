@@ -71,8 +71,14 @@ function buildSiwsMessage(publicKeyB58, url) {
 /**
  * Construit les credentials `signInWithWeb3` à partir de la phrase.
  * Même phrase ⇒ même clé ⇒ même compte : la phrase EST l'identité.
+ *
+ * Le message est signé avec l'ORIGINE racine (pas l'URL de la page) :
+ * Supabase valide l'URI contre Site URL / Redirect URLs, et « /login »
+ * n'y figure pas.
  */
-export async function buildGhostCredentials(phrase, url = window.location) {
+export async function buildGhostCredentials(phrase, location = window.location) {
+  const url = { host: location.host, href: `${location.origin}/` }
+
   const seed = await deriveSeed(phrase)
   const publicKey = await ed.getPublicKeyAsync(seed)
   const message = buildSiwsMessage(toBase58(publicKey), url)
