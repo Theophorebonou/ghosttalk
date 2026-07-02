@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input'
 
 export function KeyBackupPanel({
   keyPair,
+  account = null,
   compact = false,
   requireAcknowledge = false,
   onAcknowledged,
@@ -32,9 +33,9 @@ export function KeyBackupPanel({
         if (passphrase !== confirmPassphrase) {
           throw new Error('Les phrases secrètes ne correspondent pas.')
         }
-        content = await exportKeyBackupEncrypted(keyPair, passphrase)
+        content = await exportKeyBackupEncrypted(keyPair, passphrase, account)
       } else {
-        content = exportKeyBackupPlaintext(keyPair)
+        content = exportKeyBackupPlaintext(keyPair, account)
       }
       downloadBackupFile(content)
       if (requireAcknowledge) setAcknowledged(true)
@@ -53,8 +54,8 @@ export function KeyBackupPanel({
         throw new Error('Les phrases secrètes ne correspondent pas.')
       }
       const content = useEncryption
-        ? await exportKeyBackupEncrypted(keyPair, passphrase)
-        : exportKeyBackupPlaintext(keyPair)
+        ? await exportKeyBackupEncrypted(keyPair, passphrase, account)
+        : exportKeyBackupPlaintext(keyPair, account)
       await navigator.clipboard.writeText(content)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)

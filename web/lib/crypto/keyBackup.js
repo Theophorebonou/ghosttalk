@@ -1,11 +1,12 @@
 import { bufToBase64, base64ToBuf, storeKeyPair } from './keys'
 
-const BACKUP_VERSION = 1
+const BACKUP_VERSION = 2
+const SUPPORTED_VERSIONS = new Set([1, 2])
 
 function parseBackupJson(raw) {
   const data = typeof raw === 'string' ? JSON.parse(raw) : raw
 
-  if (!data || data.v !== BACKUP_VERSION) {
+  if (!data || !SUPPORTED_VERSIONS.has(data.v)) {
     throw new Error('Format de sauvegarde non reconnu.')
   }
 
@@ -16,18 +17,27 @@ function parseBackupJson(raw) {
   return { publicKey: data.publicKey, privateKey: data.privateKey }
 }
 
-export function buildBackupPayload(keyPair) {
-  return {
+/**
+ * v2 : `account` ({ username, recoveryPhrase }) est optionnel — présent pour
+ * les comptes fantômes, il permet de restaurer compte ET clés d'un seul fichier.
+ */
+export function buildBackupPayload(keyPair, account = null) {
+  const payload = {
     v: BACKUP_VERSION,
     app: 'ghosttalk',
     createdAt: new Date().toISOString(),
     publicKey: keyPair.publicKey,
     privateKey: keyPair.privateKey,
   }
+  if (account?.username && account?.recoveryPhrase) {
+    payload.username = account.username
+    payload.recoveryPhrase = account.recoveryPhrase
+  }
+  return payload
 }
 
-export function exportKeyBackupPlaintext(keyPair) {
-  return JSON.stringify(buildBackupPayload(keyPair), null, 2)
+export function exportKeyBackupPlaintext(keyPair, account = null) {
+  return JSON.stringify(buildBackupPayload(keyPair, account), null, 2)
 }
 
 export async function deriveBackupKey(passphrase, saltBuf) {
@@ -54,7 +64,7 @@ export async function deriveBackupKey(passphrase, saltBuf) {
   )
 }
 
-export async function exportKeyBackupEncrypted(keyPair, passphrase) {
+export async function exportKeyBackupEncrypted(keyPair, passphrase, account = null) {
   if (!passphrase || passphrase.length < 8) {
     throw new Error('La phrase secrète doit contenir au moins 8 caractères.')
   }
@@ -62,7 +72,7 @@ export async function exportKeyBackupEncrypted(keyPair, passphrase) {
   const salt = crypto.getRandomValues(new Uint8Array(16))
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const aesKey = await deriveBackupKey(passphrase, salt)
-  const plaintext = new TextEncoder().encode(exportKeyBackupPlaintext(keyPair))
+  const plaintext = new TextEncoder().encode(exportKeyBackupPlaintext(keyPair, account))
 
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },

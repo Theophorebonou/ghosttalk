@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AuthPanel } from '@/components/auth/AuthPanel'
-import { GhostLoginButton } from '@/components/auth/GhostLoginButton'
+import { GhostAuthPanel } from '@/components/auth/GhostAuthPanel'
 import { EmailPhoneLoginButton } from '@/components/auth/EmailPhoneLoginButton'
 import { KeyRestorePanel } from '@/components/auth/KeyRestorePanel'
 import { UsernameSetup } from '@/components/auth/UsernameSetup'
@@ -25,10 +25,13 @@ export default function LoginPage() {
   const [keysReady, setKeysReady] = useState(null)
 
   useEffect(() => {
+    // Pas de redirection automatique pendant le flux fantôme : il affiche
+    // la phrase de récupération après l'authentification et redirige lui-même.
+    if (authMethod === 'ghost') return
     if (!loading && isAuthenticated && hasProfile && hasLocalKeys()) {
       router.replace('/chat')
     }
-  }, [loading, isAuthenticated, hasProfile, router])
+  }, [loading, isAuthenticated, hasProfile, router, authMethod])
 
   useEffect(() => {
     if (isAuthenticated && hasProfile) {
@@ -44,6 +47,16 @@ export default function LoginPage() {
         <Spinner className="h-10 w-10" />
         <p className="text-sm text-zinc-500 animate-pulse">Chargement…</p>
       </div>
+    )
+  }
+
+  // Avant les branches « authentifié » : le flux fantôme reste monté pendant
+  // que l'état auth évolue (signUp → phrase → backup → /chat).
+  if (authMethod === 'ghost') {
+    return (
+      <AuthPanel onBack={() => setAuthMethod(null)}>
+        <GhostAuthPanel onDone={() => setAuthMethod(null)} />
+      </AuthPanel>
     )
   }
 
@@ -79,14 +92,6 @@ export default function LoginPage() {
     return (
       <AuthPanel title="Créer votre identité">
         <UsernameSetup />
-      </AuthPanel>
-    )
-  }
-
-  if (authMethod === 'ghost') {
-    return (
-      <AuthPanel onBack={() => setAuthMethod(null)}>
-        <GhostLoginButton />
       </AuthPanel>
     )
   }

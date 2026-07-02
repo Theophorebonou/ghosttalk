@@ -3,7 +3,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { getProfileByUserId } from '@/lib/api/profiles'
 import { clearMessageCache } from '@/lib/cache/messageCache'
-import { clearStoredKeyPair, getOrCreateKeyPair } from '@/lib/crypto/keys'
+import { clearStoredKeyPair } from '@/lib/crypto/keys'
+import {
+  generateRecoveryPhrase,
+  ghostEmailForUsername,
+  normalizeRecoveryPhrase,
+} from '@/lib/crypto/recoveryPhrase'
 import { supabase } from '@/lib/supabase/client'
 
 const AuthContext = createContext(null)
@@ -79,15 +84,51 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const signInGhost = useCallback(async () => {
+  // Création d'un compte fantôme : email synthétique dérivé du pseudo
+  // (jamais affiché) + phrase de récupération générée comme mot de passe.
+  const signUpGhost = useCallback(async (username) => {
     setAuthError(null)
 
-    const { data, error } = await supabase.auth.signInAnonymously()
-    if (error) throw error
+    const phrase = generateRecoveryPhrase()
+    const { data, error } = await supabase.auth.signUp({
+      email: ghostEmailForUsername(username),
+      password: phrase,
+    })
+    if (error) {
+      if (error.message?.toLowerCase().includes('already registered')) {
+        throw new Error('Ce pseudo est déjà pris.')
+      }
+      throw error
+    }
 
-    await getOrCreateKeyPair()
+    if (!data.session) {
+      // « Confirm email » est activé côté Supabase : le mode fantôme exige
+      // une session immédiate (l'email synthétique ne reçoit rien).
+      throw new Error(
+        'Configuration Supabase requise : désactivez « Confirm email » (Authentication → Sign In / Up) pour le mode fantôme.'
+      )
+    }
+
     setUser(data.user)
+    return { user: data.user, phrase }
+  }, [])
 
+  // Reconnexion : pseudo + phrase de récupération.
+  const signInGhost = useCallback(async (username, phrase) => {
+    setAuthError(null)
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: ghostEmailForUsername(username),
+      password: normalizeRecoveryPhrase(phrase),
+    })
+    if (error) {
+      if (error.message?.toLowerCase().includes('invalid login credentials')) {
+        throw new Error('Pseudo ou phrase de récupération incorrects.')
+      }
+      throw error
+    }
+
+    setUser(data.user)
     const existingProfile = await refreshProfile(data.user.id)
     return { user: data.user, profile: existingProfile }
   }, [refreshProfile])
@@ -109,12 +150,13 @@ export function AuthProvider({ children }) {
       authError,
       isAuthenticated: !!user,
       hasProfile: !!profile,
+      signUpGhost,
       signInGhost,
       signOut,
       refreshProfile,
       setAuthError,
     }),
-    [user, profile, loading, authError, signInGhost, signOut, refreshProfile]
+    [user, profile, loading, authError, signUpGhost, signInGhost, signOut, refreshProfile]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
