@@ -1,14 +1,12 @@
 import { WORDLIST } from './wordlist'
-import { normalizeUsername } from '@/lib/utils/username'
 
-const PHRASE_WORD_COUNT = 8
-
-// Domaine synthétique : jamais affiché, jamais utilisé pour envoyer un email.
-// Il sert uniquement d'identifiant Supabase dérivé du pseudo.
-const GHOST_EMAIL_DOMAIN = 'ghost.ghosttalk.app'
+// 10 mots parmi 256 = 80 bits d'entropie. Combiné au rate-limiting Supabase
+// (en ligne) et au KDF lent de ghostWallet.js (hors ligne), la force brute
+// est hors de portée.
+const PHRASE_WORD_COUNT = 10
 
 /**
- * Génère une phrase de récupération de 8 mots (64 bits d'entropie).
+ * Génère une phrase de récupération de 10 mots.
  * La wordlist fait exactement 256 mots : 1 octet aléatoire = 1 mot, sans biais.
  */
 export function generateRecoveryPhrase() {
@@ -24,13 +22,9 @@ export function generateRecoveryPhrase() {
 export function normalizeRecoveryPhrase(input) {
   return (input || '')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
     .split(/\s+/)
     .join(' ')
-}
-
-export function ghostEmailForUsername(username) {
-  return `${normalizeUsername(username)}@${GHOST_EMAIL_DOMAIN}`
 }

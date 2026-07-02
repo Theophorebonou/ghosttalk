@@ -63,7 +63,7 @@ export function GhostAuthPanel({ onDone }) {
         throw new Error('Ce pseudo est déjà pris.')
       }
 
-      const { user, phrase: generated } = await signUpGhost(normalized)
+      const { user, phrase: generated } = await signUpGhost()
 
       const keys = await generateKeyPair()
       storeKeyPair(keys)
@@ -292,7 +292,7 @@ export function GhostAuthPanel({ onDone }) {
 
           <div>
             <label htmlFor="ghost-login-phrase" className="mb-2 block text-sm text-zinc-400">
-              Ta phrase de récupération (8 mots)
+              Ta phrase de récupération (10 mots)
             </label>
             <textarea
               id="ghost-login-phrase"
