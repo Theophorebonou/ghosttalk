@@ -357,21 +357,83 @@ export function Sidebar() {
   const directConversations = activeConversations.filter((c) => c.type === 'direct')
   const groupConversations = activeConversations.filter((c) => c.type === 'group')
 
-  const sidebarClasses = activeId 
-    ? 'hidden md:flex md:w-80' 
-    : 'flex w-full md:w-80'
+  const sidebarClasses = activeId
+    ? 'hidden md:flex md:w-[35%] md:min-w-[380px] md:max-w-[520px]'
+    : 'flex w-full md:w-[35%] md:min-w-[380px] md:max-w-[520px]'
 
   return (
     <>
-      <aside className={`relative z-10 h-full shrink-0 flex-col border-r border-border bg-surface ${sidebarClasses}`}>
+      <div className={`relative z-10 h-full shrink-0 flex-row border-r border-border ${sidebarClasses}`}>
+
+      {/* Rail d'icônes — WhatsApp Web */}
+      <nav className="hidden h-full w-16 shrink-0 flex-col items-center justify-between border-r border-border bg-surface-highlight py-3 md:flex">
+        <div className="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-text transition"
+            title="Discussions"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCreateGroup(true)}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
+            title="Nouveau groupe"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowFolderManager(true)}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
+            title="Dossiers"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex flex-col items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
+            title="Paramètres"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            title={profile ? `@${profile.username}` : 'Profil'}
+            className="rounded-full ring-offset-2 ring-offset-surface-highlight transition hover:ring-2 hover:ring-primary/50"
+          >
+            {profile ? (
+              <UserAvatar username={profile.username} avatarUrl={profile.avatar_url} size="md" />
+            ) : (
+              <div className="h-10 w-10 animate-pulse rounded-full bg-surface" />
+            )}
+          </button>
+        </div>
+      </nav>
+
+      <aside className="flex h-full min-w-0 flex-1 flex-col bg-surface">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border bg-surface-highlight px-4 py-3">
-        <h1 className="text-lg font-semibold text-text">GhostTalk</h1>
+      <div className="flex items-center justify-between px-4 pb-1 pt-3.5">
+        <h1 className="text-xl font-bold text-text">GhostTalk</h1>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setShowCreateGroup(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-surface-highlight hover:text-text md:hidden"
             title="Nouveau groupe"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,8 +443,8 @@ export function Sidebar() {
           <button
             type="button"
             onClick={() => setShowSettings(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-surface hover:text-text"
-            title="Parametres"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition hover:bg-surface-highlight hover:text-text"
+            title="Paramètres"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
@@ -490,14 +552,14 @@ export function Sidebar() {
                     <li key={conv.id}>
                       <Link
                         href={`/chat/${conv.id}`}
-                        className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                        className={`flex items-center gap-3 pl-3 transition-colors ${
                           isActive
                             ? 'bg-surface-highlight'
-                            : 'hover:bg-surface-highlight/50'
+                            : 'hover:bg-surface-highlight/60'
                         }`}
                       >
                         {/* Avatar */}
-                        <div className="relative shrink-0">
+                        <div className="shrink-0">
                           {isGroup ? (
                             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
                               <GroupIcon className="h-6 w-6 text-primary" />
@@ -509,31 +571,33 @@ export function Sidebar() {
                               size="lg"
                             />
                           )}
-                          {unread && !isActive && (
-                            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-primary animate-pulse-dot" />
-                          )}
                         </div>
 
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className={`truncate ${unread ? 'font-semibold text-text' : 'font-medium text-text'}`}>
+                        {/* Content — séparateur en retrait façon WhatsApp */}
+                        <div className="flex h-[72px] min-w-0 flex-1 flex-col justify-center border-b border-border/40 pr-3">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className={`truncate text-[15px] text-text ${unread ? 'font-semibold' : 'font-normal'}`}>
                               {isGroup ? displayName : `@${displayName}`}
                             </span>
                             <span className={`text-xs shrink-0 ${unread ? 'text-primary font-medium' : 'text-text-muted'}`}>
                               {lastMessageTime}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            {muted && (
-                              <svg className="h-4 w-4 text-text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipRule="evenodd" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                              </svg>
-                            )}
-                            <span className={`truncate text-sm ${unread ? 'text-text' : 'text-text-muted'}`}>
-                              {isGroup ? `${participantCount} membres` : 'Message chiffre'}
+                          <div className="mt-0.5 flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-1">
+                              {muted && (
+                                <svg className="h-4 w-4 text-text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipRule="evenodd" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                                </svg>
+                              )}
+                              <span className={`truncate text-sm ${unread ? 'text-text' : 'text-text-muted'}`}>
+                                {isGroup ? `${participantCount} membres` : 'Message chiffré'}
+                              </span>
                             </span>
+                            {unread && !isActive && (
+                              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />
+                            )}
                           </div>
                         </div>
                       </Link>
@@ -561,37 +625,9 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Profile footer */}
-      <div className="border-t border-border bg-surface-highlight px-4 py-3">
-        {profile ? (
-          <div className="flex items-center gap-3">
-            <UserAvatar
-              username={profile.username}
-              avatarUrl={profile.avatar_url}
-              size="md"
-            />
-            <div className="flex flex-col truncate">
-              <span className="truncate text-sm font-semibold text-text">
-                @{profile.username}
-              </span>
-              <span className="flex items-center gap-1 text-xs text-text-muted">
-                <span className="h-2 w-2 rounded-full bg-primary" />
-                En ligne
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-surface" />
-            <div className="flex flex-col gap-1">
-              <div className="h-4 w-20 animate-pulse rounded bg-surface" />
-              <div className="h-3 w-16 animate-pulse rounded bg-surface" />
-            </div>
-          </div>
-        )}
-      </div>
-
       </aside>
+
+      </div>
 
       {showCreateGroup && typeof document !== 'undefined' && createPortal(
         <CreateGroupModal onClose={() => setShowCreateGroup(false)} />,

@@ -111,6 +111,17 @@ body {
   animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
+/* Chat wallpaper — WhatsApp-style doodle pattern */
+.chat-doodle-bg {
+  background-color: var(--background);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%23e9edef' stroke-opacity='0.05' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='22' y='30' width='52' height='34' rx='10'/><path d='M34 64l-7 11v-11'/><path d='M190 38c-6-8-20-4-20 6 0 9 12 14 20 21 8-7 20-12 20-21 0-10-14-14-20-6z'/><path d='M120 152v-26l18-7v26'/><circle cx='114' cy='152' r='6'/><circle cx='132' cy='145' r='6'/><path d='M56 188h22M67 177v22'/><circle cx='212' cy='210' r='9'/><path d='M136 66q9-12 18 0t18 0'/><rect x='196' y='120' width='26' height='44' rx='6'/><path d='M205 158h8'/><path d='M40 116l6 12 13 2-9 9 2 13-12-6-12 6 2-13-9-9 13-2z'/><path d='M148 210q0-14 14-14t14 14'/><path d='M148 210h28'/></g></svg>");
+  background-size: 340px auto;
+}
+
+[data-theme='light'] .chat-doodle-bg {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%23111b21' stroke-opacity='0.06' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='22' y='30' width='52' height='34' rx='10'/><path d='M34 64l-7 11v-11'/><path d='M190 38c-6-8-20-4-20 6 0 9 12 14 20 21 8-7 20-12 20-21 0-10-14-14-20-6z'/><path d='M120 152v-26l18-7v26'/><circle cx='114' cy='152' r='6'/><circle cx='132' cy='145' r='6'/><path d='M56 188h22M67 177v22'/><circle cx='212' cy='210' r='9'/><path d='M136 66q9-12 18 0t18 0'/><rect x='196' y='120' width='26' height='44' rx='6'/><path d='M205 158h8'/><path d='M40 116l6 12 13 2-9 9 2 13-12-6-12 6 2-13-9-9 13-2z'/><path d='M148 210q0-14 14-14t14 14'/><path d='M148 210h28'/></g></svg>");
+}
+
 /* Message bubble tails - WhatsApp style */
 .bubble-tail-out {
   position: relative;

@@ -2,7 +2,6 @@
 
 import { useParams } from 'next/navigation'
 import { Sidebar } from '@/components/chat/Sidebar'
-import { GhostBackdrop } from '@/components/visual/GhostBackdrop'
 
 export default function ChatLayout({ children }) {
   const params = useParams()
@@ -10,7 +9,6 @@ export default function ChatLayout({ children }) {
 
   return (
     <div className="relative flex h-[100dvh] w-full overflow-hidden bg-background text-foreground">
-      <GhostBackdrop variant="chat" />
       <Sidebar />
       <main className={`relative z-10 flex min-w-0 flex-1 flex-col ${activeId ? 'flex' : 'hidden md:flex'}`}>
         {children}

@@ -921,7 +921,7 @@ export function ChatWindow({ conversationId }) {
   if (loading) {
     return (
       <div className="flex h-full flex-1 items-center justify-center backdrop-blur-sm">
-        <Spinner className="h-8 w-8 text-violet-500" />
+        <Spinner className="h-8 w-8 text-primary" />
       </div>
     )
   }
@@ -1128,8 +1128,7 @@ export function ChatWindow({ conversationId }) {
       {/* Messages area with chat background */}
       <div
         ref={scrollContainerRef}
-        className="relative flex-1 overflow-y-auto py-2"
-        style={{ backgroundColor: 'var(--background)' }}
+        className="chat-doodle-bg relative flex-1 overflow-y-auto py-2 lg:px-[4%]"
       >
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">

@@ -187,7 +187,7 @@ export function CallModal({
   const isConnecting = callStatus === 'connecting'
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col" style={{ background: 'linear-gradient(160deg, #16122a 0%, #0d0b18 60%, #0a0812 100%)' }}>
+    <div className="fixed inset-0 z-[100] flex flex-col" style={{ background: 'linear-gradient(160deg, #1f2c34 0%, #111b21 55%, #0b141a 100%)' }}>
 
       {/* Sortie audio des appels vocaux (la balise <video> ne couvre que le mode vidéo) */}
       {!isVideo && <audio ref={remoteAudioRef} autoPlay />}
