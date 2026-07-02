@@ -36,7 +36,7 @@ export class CallManager {
     }
 
     pc.ontrack = (event) => {
-      this.remoteStream = event.streams[0] ?? event.streams[0]
+      this.remoteStream = event.streams[0] ?? new MediaStream([event.track])
       this.onRemoteStream?.(this.remoteStream)
     }
 
@@ -80,6 +80,8 @@ export class CallManager {
     this._ended = false
     this.callType  = callType
     this.isCaller  = true
+    this._remoteDescSet = false
+    this._pendingCandidates = []
 
     try {
       this.peerConnection = this._buildPeerConnection()
@@ -132,21 +134,27 @@ export class CallManager {
       this.localStream = await navigator.mediaDevices.getUserMedia(this._mediaConstraints())
       this.localStream.getTracks().forEach((t) => this.peerConnection.addTrack(t, this.localStream))
 
+      // Fetch every signal already stored (offer + ICE candidates sent before
+      // our realtime subscription existed — otherwise these candidates are lost)
+      const { data: { session } } = await supabase.auth.getSession()
       const { data: signals } = await supabase
         .from('call_signals')
         .select('*')
         .eq('call_id', callId)
-        .eq('signal_type', 'offer')
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .order('created_at', { ascending: true })
 
-      if (!signals?.length) throw new Error('Offre WebRTC introuvable')
+      const remoteSignals = (signals ?? []).filter((s) => s.sender_id !== session?.user?.id)
+      const offer = remoteSignals.filter((s) => s.signal_type === 'offer').pop()
+      if (!offer) throw new Error('Offre WebRTC introuvable')
 
-      await this.peerConnection.setRemoteDescription(signals[0].signal_data)
+      await this.peerConnection.setRemoteDescription(offer.signal_data)
       this._remoteDescSet = true
 
-      // Drain queued ICE candidates
-      for (const c of this._pendingCandidates) {
+      // Drain early candidates (from the fetch) then those queued via realtime
+      const earlyCandidates = remoteSignals
+        .filter((s) => s.signal_type === 'ice_candidate')
+        .map((s) => s.signal_data)
+      for (const c of [...earlyCandidates, ...this._pendingCandidates]) {
         await this._addIce(c)
       }
       this._pendingCandidates = []
@@ -229,15 +237,17 @@ export class CallManager {
     this.localStream?.getVideoTracks().forEach((t) => { t.enabled = enabled })
   }
 
-  async endCall(reason = 'ended') {
+  // updateStatus:false — cleanup local seulement (l'autre participant a déjà
+  // mis le statut terminal en base, ne pas l'écraser)
+  async endCall(reason = 'ended', { updateStatus = true } = {}) {
     if (this._ended) return
     this._ended = true
 
-    if (this.callId && !String(this.callId).startsWith('demo-')) {
+    if (updateStatus && this.callId && !String(this.callId).startsWith('demo-')) {
       try {
         await supabase.rpc('update_call_status', {
           p_call_id: this.callId,
-          p_status: reason === 'rejected' ? 'rejected' : 'ended',
+          p_status: ['rejected', 'missed'].includes(reason) ? reason : 'ended',
         })
       } catch (err) {
         console.warn('endCall status:', err)

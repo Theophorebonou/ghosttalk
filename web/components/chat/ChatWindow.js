@@ -23,7 +23,7 @@ import {
 import { setMessageReaction, removeMessageReaction, subscribeToReactions } from '@/lib/api/reactions'
 import { getUserPresence, updatePresence, isUserBlocked, getBlockedUsers, subscribeToPresence } from '@/lib/api/conversationSettings'
 import { uploadEncryptedMedia, prepareEncryptedMedia } from '@/lib/api/media'
-import { initiateCall, getIncomingCalls, subscribeToIncomingCalls, getActiveCall, updateCallStatus } from '@/lib/api/calls'
+import { initiateCall, subscribeToIncomingCalls } from '@/lib/api/calls'
 import { CallManager, isWebRTCSupported } from '@/lib/webrtc/callManager'
 import { deriveSharedKey, encryptMessage } from '@/lib/crypto/e2e'
 import { bufToBase64, importStoredKeyPair } from '@/lib/crypto/keys'
@@ -152,24 +152,29 @@ export function ChatWindow({ conversationId }) {
       isUserBlocked(otherUser.id).then(setIsOtherUserBlocked).catch(console.error)
     }
     
-    // Écouter les appels entrants
-    if (isWebRTCSupported() && user?.id) {
-      const channel = subscribeToIncomingCalls(user.id, (call) => {
-        setIncomingCall(call)
-        setShowCallModal(true)
-      })
-      return () => {
-        clearInterval(id)
-        updatePresence(false)
-        channel?.unsubscribe()
-      }
-    }
-    
     return () => {
       clearInterval(id)
       updatePresence(false)
     }
   }, [])
+
+  // Écouter les appels entrants — effet séparé keyé sur user.id, sinon la
+  // souscription n'est jamais créée quand le profil se charge après le montage
+  useEffect(() => {
+    if (!isWebRTCSupported() || !user?.id) return
+    const channel = subscribeToIncomingCalls(user.id, (call) => {
+      setIncomingCall(call)
+      setShowCallModal(true)
+    })
+    return () => channel?.unsubscribe()
+  }, [user?.id])
+
+  // Couper micro/caméra si on quitte la conversation en plein appel
+  useEffect(() => {
+    return () => {
+      if (callManager.isCallActive()) callManager.endCall().catch(console.error)
+    }
+  }, [callManager])
 
   useEffect(() => {
     if (!otherUser?.id || isGroup) return
@@ -262,14 +267,6 @@ export function ChatWindow({ conversationId }) {
     setActiveCall(null)
     setShowCallModal(false)
     setIncomingCall(null)
-  }
-
-  function handleRejectIncomingCall() {
-    if (incomingCall) {
-      updateCallStatus(incomingCall.id, 'rejected').catch(console.error)
-    }
-    setIncomingCall(null)
-    setShowCallModal(false)
   }
 
   const scrollToMessage = useCallback((id) => {

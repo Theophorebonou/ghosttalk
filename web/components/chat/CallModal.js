@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getCall, updateCallStatus } from '@/lib/api/calls'
+import { getCall, updateCallStatus, subscribeToCallStatus } from '@/lib/api/calls'
+
+const RING_TIMEOUT_MS = 45000
 
 export function CallModal({
   isOpen,
@@ -25,7 +27,15 @@ export function CallModal({
 
   const localVideoRef  = useRef(null)
   const remoteVideoRef = useRef(null)
+  const remoteAudioRef = useRef(null)
   const endedRef       = useRef(false)
+
+  // Handlers du parent non mémoïsés — via refs pour ne pas résouscrire
+  // les canaux realtime à chaque render de ChatWindow
+  const onCloseRef     = useRef(onClose)
+  const onCallEndedRef = useRef(onCallEnded)
+  onCloseRef.current     = onClose
+  onCallEndedRef.current = onCallEnded
 
   useEffect(() => {
     if (!isOpen) return
@@ -41,7 +51,8 @@ export function CallModal({
 
     if (callId && !String(callId).startsWith('demo-')) {
       getCall(callId).then((call) => {
-        if (call) setRemoteUser(call.callee || call.caller)
+        // L'interlocuteur : l'appelant si l'appel est entrant, sinon l'appelé
+        if (call) setRemoteUser(isIncoming ? call.caller : call.callee)
       }).catch(console.error)
     }
 
@@ -55,8 +66,8 @@ export function CallModal({
     callManager.onCallEnded = () => {
       if (!endedRef.current) {
         endedRef.current = true
-        onCallEnded?.()
-        onClose()
+        onCallEndedRef.current?.()
+        onCloseRef.current?.()
       }
     }
 
@@ -71,30 +82,49 @@ export function CallModal({
       else if (status === 'connected') setCallStatus('connected')
     }
 
-    if (isIncoming && callId) {
-      callManager.answerCall(callId, callType)
-        .then(() => setLocalStream(callManager.localStream))
-        .catch((err) => {
-          setErrorMessage(err.message)
-          setCallStatus('error')
-        })
-    }
-
     return () => {
       callManager.onRemoteStream    = null
       callManager.onCallEnded       = null
       callManager.onCallError       = null
       callManager.onCallStatusChanged = null
     }
-  }, [isOpen, callId, isIncoming, callType, callManager, remoteDisplayName, onCallEnded, onClose])
+  }, [isOpen, callId, isIncoming, callType, callManager, remoteDisplayName])
+
+  // Fin d'appel signalée par l'autre participant (rejet, raccrochage, manqué)
+  useEffect(() => {
+    if (!isOpen || !callId) return
+    const channel = subscribeToCallStatus(callId, (call) => {
+      if (!['ended', 'rejected', 'missed'].includes(call?.status)) return
+      if (endedRef.current) return
+      endedRef.current = true
+      callManager?.endCall(call.status, { updateStatus: false }).catch(console.error)
+      onCallEndedRef.current?.()
+      onCloseRef.current?.()
+    })
+    return () => channel?.unsubscribe()
+  }, [isOpen, callId, callManager])
+
+  // Timeout de sonnerie côté appelant : appel non répondu → manqué
+  useEffect(() => {
+    if (!isOpen || isIncoming || callStatus !== 'calling') return
+    const timer = setTimeout(() => {
+      if (endedRef.current) return
+      endedRef.current = true
+      callManager?.endCall('missed').catch(console.error)
+      onCallEndedRef.current?.()
+      onCloseRef.current?.()
+    }, RING_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [isOpen, isIncoming, callStatus, callManager])
 
   useEffect(() => {
     if (localStream  && localVideoRef.current)  localVideoRef.current.srcObject  = localStream
-  }, [localStream])
+  }, [localStream, callStatus, isVideoOff])
 
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
-  }, [remoteStream])
+    if (remoteStream && remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream
+  }, [remoteStream, callStatus])
 
   useEffect(() => {
     if (callStatus !== 'connected') return
@@ -102,10 +132,12 @@ export function CallModal({
     return () => clearInterval(id)
   }, [callStatus])
 
+  // Statut mis à jour ici (pas via le manager) : pour un appel entrant non
+  // décroché, le manager n'est pas encore lié au callId et n'écrirait rien
   async function handleEndCall() {
     endedRef.current = true
-    if (callManager) await callManager.endCall()
-    if (callId) await updateCallStatus(callId, 'ended')
+    if (callId) await updateCallStatus(callId, 'ended').catch(console.error)
+    if (callManager) await callManager.endCall('ended', { updateStatus: false })
     localStream?.getTracks().forEach((t) => t.stop())
     onCallEnded?.()
     onClose()
@@ -113,8 +145,8 @@ export function CallModal({
 
   async function handleRejectCall() {
     endedRef.current = true
-    if (callManager) await callManager.endCall('rejected')
-    if (callId) await updateCallStatus(callId, 'rejected')
+    if (callId) await updateCallStatus(callId, 'rejected').catch(console.error)
+    if (callManager) await callManager.endCall('rejected', { updateStatus: false })
     onClose()
   }
 
@@ -156,6 +188,9 @@ export function CallModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col" style={{ background: 'linear-gradient(160deg, #16122a 0%, #0d0b18 60%, #0a0812 100%)' }}>
+
+      {/* Sortie audio des appels vocaux (la balise <video> ne couvre que le mode vidéo) */}
+      {!isVideo && <audio ref={remoteAudioRef} autoPlay />}
 
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-safe pb-3 pt-5">
